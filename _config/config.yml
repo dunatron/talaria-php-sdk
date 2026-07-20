@@ -1,0 +1,23 @@
+---
+Name: talaria-logging
+After:
+  - '#corelogging'
+---
+SilverStripe\Core\Injector\Injector:
+  Talaria\Client:
+    factory: Talaria\SilverStripe\InjectorFactory
+  Talaria\SilverStripe\TalariaLogHandler:
+    factory: Talaria\SilverStripe\LogHandlerFactory
+  Psr\Log\LoggerInterface:
+    calls:
+      PushTalariaHandler: [ pushHandler, [ '%$Talaria\SilverStripe\TalariaLogHandler' ] ]
+
+Talaria\SilverStripe\Config:
+  dsn: '`TALARIA_DSN`'
+  apiKey: '`TALARIA_API_KEY`'
+  environment: '`TALARIA_ENVIRONMENT`'
+  release: '`TALARIA_RELEASE`'
+  minLevel: warning
+  maxBatchSize: 50
+  flushIntervalMs: 2000
+  sampleRate: 1.0

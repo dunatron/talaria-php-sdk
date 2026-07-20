@@ -1,0 +1,32 @@
+---
+description: PHP SDK public API and capture semantics
+globs:
+  - "src/**"
+---
+
+# Public API
+
+## Facade (JS parity)
+
+```php
+Talaria::init([...]);
+Talaria::captureException($e, $context);
+Talaria::captureMessage($message, $level, $context);
+Talaria::flush();
+Talaria::close();
+```
+
+Also expose `Talaria\Client` for DI and `Talaria\Logger` (PSR-3).
+
+## Init options
+
+- Required: `dsn` or `baseUrl`, `apiKey`, `environment`
+- Optional: `release`, `sampleRate`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`
+
+## Capture rules
+
+- Exceptions default `level: error`; messages default `info`
+- Derive `eventType` from level
+- Context bag: `tags`, `extra`, `userId`, `title`
+- Sampling happens before enqueue; sampled-out is success/no-op
+- Capture enqueues only — network I/O happens on queue drain

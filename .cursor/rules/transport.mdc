@@ -1,0 +1,47 @@
+---
+description: PHP SDK HTTP transport and batch queue rules
+globs:
+  - "src/Transport/**"
+  - "tests/**"
+---
+
+# Transport & queue
+
+## Wire contract
+
+- `POST {baseUrl}/events/ingestBatch`
+- Header: `X-API-Key` only (no dual Authorization unless needed)
+- Body:
+
+```json
+{
+  "input": {
+    "__className__": "IngestEventBatchInput",
+    "events": [
+      { "__className__": "IngestEventInput", "message": "...", "environment": "production" }
+    ]
+  }
+}
+```
+
+- Even a single leftover event is a batch of one
+- `extra` → `extraJson` (JSON **string**); `tags` are string→string
+- Flat `userId` / `url` — not nested `user` / `request`
+
+## EventQueue drain triggers
+
+| Trigger | Config | When |
+| ------- | ------ | ---- |
+| Size | `maxBatchSize` (default 50) | Buffer reaches N |
+| Age | `flushIntervalMs` (default 2000) | Checked on each enqueue |
+| Explicit | `flush()` / `close()` | Always drain |
+| Shutdown | `register_shutdown_function` | Drain remainder |
+
+PHP FPM has no background timer — age is checked on enqueue, not via a wall-clock thread.
+
+## Reliability
+
+- Short HTTP timeout (2–3s)
+- No unbounded retries; on 429 log warning and drop/backoff once
+- Transport failures must not crash the host app
+- Call `fastcgi_finish_request()` when available before shutdown network I/O

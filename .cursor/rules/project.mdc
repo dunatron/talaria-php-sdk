@@ -1,0 +1,51 @@
+---
+description: Talaria PHP SDK project conventions
+alwaysApply: true
+---
+
+# Talaria PHP SDK
+
+Language-agnostic ingest adapter for Talaria. Primary target: PHP / Silverstripe apps.
+
+## Role
+
+```
+App → Client (capture*) → EventQueue → POST /events/ingestBatch → Talaria server
+```
+
+- Fingerprinting and issue grouping are **server-side only** — never compute fingerprints here
+- Auth: project API key via `X-API-Key` (`tal_live_…`)
+- Always send via **batch** ingest; never one HTTP call per log in the normal path
+- No billing APIs; treat 429 carefully (quota vs rate limit)
+
+## Package map
+
+| Path | Role |
+| ---- | ---- |
+| `src/` | Framework-agnostic SDK (`Talaria\`) |
+| `silverstripe/src/` | Thin Silverstripe adapter (`Talaria\SilverStripe\`) |
+| `_config/` | Silverstripe YAML (vendormodule discovery) |
+| `tests/` | PHPUnit |
+
+## Vocabulary
+
+| Term | SDK responsibility |
+| ---- | ------------------ |
+| Event | Build wire JSON (message, level, stack, tags, extra, environment, release) |
+| level | Severity: `debug` \| `info` \| `warning` \| `error` \| `fatal` |
+| eventType | Derived from level when omitted (`fatal`/`error` → `error`) |
+| environment | `production` \| `staging` \| `development` |
+| sampleRate | Client-side sampling before enqueue |
+
+## Sources of truth
+
+- Live ingest: Talaria server `events/ingestBatch` (Serverpod RPC)
+- Parity reference: `@newtalaria/browser` transport (same camelCase + `__className__`)
+- Prefer live server behavior over `new_talaria/planning/php_sdk` prototype when they diverge
+
+## Explicit don'ts
+
+- Do not compute fingerprints
+- Do not call `events/ingest` for normal or flush paths — always `ingestBatch`
+- Do not retry unbounded on 429
+- Do not import Silverstripe types from `src/`
