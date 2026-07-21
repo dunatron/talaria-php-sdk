@@ -29,3 +29,4 @@ Depends on core `Talaria\Client` (PHP) and the published npm package [`@newtalar
 - Same project `tal_live_` key as PHP; replay sample rates default to `0`
 - Tag events with `runtime=silverstripe-cms` or `silverstripe-frontend` (when the published SDK supports init `tags`)
 - CMS sets `inlineStylesheet: true` automatically; frontend defaults false; YAML `browserInlineStylesheet` overrides both
+- CMS promotes failed HTTP **400–599** to events; frontend **500–599**; YAML `browserFailedRequestStatusCodes` / `browserCaptureFailedRequests` override

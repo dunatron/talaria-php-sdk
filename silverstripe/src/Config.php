@@ -87,6 +87,8 @@ class Config
                 'runtime' => $runtimeTag,
             ],
             'inlineStylesheet' => self::resolveInlineStylesheet($runtimeTag),
+            'captureFailedRequests' => self::resolveCaptureFailedRequests(),
+            'failedRequestStatusCodes' => self::resolveFailedRequestStatusCodes($runtimeTag),
         ];
 
         if (!empty($options['release']) && is_string($options['release'])) {
@@ -109,6 +111,32 @@ class Config
         return $runtimeTag === 'silverstripe-cms';
     }
 
+    private static function resolveCaptureFailedRequests(): bool
+    {
+        $value = static::config()->get('browserCaptureFailedRequests');
+
+        return $value === null ? true : (bool) $value;
+    }
+
+    /**
+     * CMS promotes 4xx+5xx (GridField/PJAX 404s); frontend keeps SDK default 5xx unless YAML overrides.
+     *
+     * @return list<array{0: int, 1: int}|int>
+     */
+    private static function resolveFailedRequestStatusCodes(string $runtimeTag): array
+    {
+        $override = static::config()->get('browserFailedRequestStatusCodes');
+        if (is_array($override) && $override !== []) {
+            return array_values($override);
+        }
+
+        if ($runtimeTag === 'silverstripe-cms') {
+            return [[400, 599]];
+        }
+
+        return [[500, 599]];
+    }
+
     /**
      * Published npm version of @newtalaria/browser to load from jsDelivr.
      *
@@ -116,14 +144,14 @@ class Config
      */
     public static function browserSdkVersion(): string
     {
-        $version = static::config()->get('browserSdkVersion') ?? '0.1.5';
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.6';
         if (!is_string($version) || $version === '') {
-            return '0.1.5';
+            return '0.1.6';
         }
 
-        // Allow semver and npm tags like 0.1.5 or latest (prefer exact semver).
+        // Allow semver and npm tags like 0.1.6 or latest (prefer exact semver).
         if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
-            return '0.1.5';
+            return '0.1.6';
         }
 
         return $version;

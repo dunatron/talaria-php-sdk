@@ -77,10 +77,10 @@ The module pushes a Monolog `TalariaLogHandler` onto the default logger. Existin
 
 With the same env vars, the module automatically loads the published npm package [`@newtalaria/browser`](https://www.npmjs.com/package/@newtalaria/browser) (via jsDelivr ESM) on:
 
-- **CMS admin** (`LeftAndMain`) — tag `runtime=silverstripe-cms`, **`inlineStylesheet: true`** (embeds same-origin admin CSS at record time)
-- **Public pages** (`ContentController`) — tag `runtime=silverstripe-frontend`, `inlineStylesheet: false` by default
+- **CMS admin** (`LeftAndMain`) — tag `runtime=silverstripe-cms`, **`inlineStylesheet: true`**, failed HTTP **400–599** promoted to events
+- **Public pages** (`ContentController`) — tag `runtime=silverstripe-frontend`, `inlineStylesheet: false`, failed HTTP **500–599** only (SDK default)
 
-Default integrations capture `window` errors and unhandled promise rejections. Session replay is **off** by default (`browserReplays*SampleRate: 0`).
+Default integrations capture `window` errors and unhandled promise rejections. Session replay is **off** by default (`browserReplays*SampleRate: 0`). Failed XHR/fetch responses matching the status ranges above are also sent as events (e.g. GridField 404s in CMS).
 
 Override in app `_config`:
 
@@ -98,11 +98,16 @@ Talaria\SilverStripe\Config:
   enableBrowserCms: true
   enableBrowserFrontend: true
   # Pin the npm package version loaded from jsDelivr
-  browserSdkVersion: '0.1.5'
+  browserSdkVersion: '0.1.6'
   browserReplaysSessionSampleRate: 0
   browserReplaysOnErrorSampleRate: 1.0
   # Optional: force inlineStylesheet on/off for both CMS and frontend
   # browserInlineStylesheet: true
+  # Optional: disable HTTP failure → event promotion
+  # browserCaptureFailedRequests: false
+  # Optional: override status ranges (list of ints or [min, max] pairs)
+  # browserFailedRequestStatusCodes:
+  #   - [400, 599]
 ```
 
 If your public pages do **not** use `ContentController`, apply the same extension:
@@ -124,10 +129,12 @@ vendor/bin/sake dev/build flush=1
 Silverstripe loads the SDK from npm (jsDelivr), not from a local monorepo path.
 
 1. In `new_talaria_js/packages/browser`: bump version, `npm run build`, `npm publish`
-2. Set `browserSdkVersion` to that version (module default is `0.1.5`)
+2. Set `browserSdkVersion` to that version (module default is `0.1.6`)
 3. Flush + hard-refresh `/admin`
 4. Confirm `window.__TALARIA_CONFIG__.inlineStylesheet === true` on CMS pages
-5. Trigger an error with replay sampling on; playback should include admin styling for same-origin sheets
+5. Confirm `failedRequestStatusCodes` is `[[400,599]]` on CMS (and `[[500,599]]` on frontend)
+6. Trigger an error with replay sampling on; playback should include admin styling for same-origin sheets
+7. Trigger a CMS GridField 404 / 5xx XHR and confirm a Talaria event like `HTTP 404: GET …`
 
 ## Batching
 
