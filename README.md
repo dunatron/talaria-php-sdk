@@ -1,8 +1,8 @@
 # newtalaria/logging
 
-PHP SDK for [Talaria](https://newtalaria.com) — logging and error tracking. Framework-agnostic core with a Silverstripe Monolog adapter.
+PHP SDK for [Talaria](https://newtalaria.com) — logging and error tracking. Framework-agnostic core with a Silverstripe Monolog adapter and automatic browser JS error capture.
 
-Events are **queued in memory** and sent with `POST /events/ingestBatch` when the buffer hits a size limit, exceeds a max age, or the request shuts down. Fingerprinting stays on the server.
+PHP events are **queued in memory** and sent with `POST /events/ingestBatch` when the buffer hits a size limit, exceeds a max age, or the request shuts down. Fingerprinting stays on the server.
 
 ## Install
 
@@ -69,16 +69,65 @@ TALARIA_RELEASE="1.2.3"
 vendor/bin/sake dev/build flush=1
 ```
 
+### PHP (Monolog)
+
 The module pushes a Monolog `TalariaLogHandler` onto the default logger. Existing `Injector::inst()->get(LoggerInterface::class)->error(...)` calls are forwarded into the Talaria batch queue.
 
-Override defaults in your app `_config`:
+### Browser JS (CMS + frontend)
+
+With the same env vars, the module automatically loads the published npm package [`@newtalaria/browser`](https://www.npmjs.com/package/@newtalaria/browser) (via jsDelivr ESM) on:
+
+- **CMS admin** (`LeftAndMain`) — tag `runtime=silverstripe-cms`, **`inlineStylesheet: true`** (embeds same-origin admin CSS at record time)
+- **Public pages** (`ContentController`) — tag `runtime=silverstripe-frontend`, `inlineStylesheet: false` by default
+
+Default integrations capture `window` errors and unhandled promise rejections. Session replay is **off** by default (`browserReplays*SampleRate: 0`).
+
+Override in app `_config`:
 
 ```yaml
+---
+Name: app-talaria
+After:
+  - '#talaria-logging'
+  - '#talaria-logging-browser'
+---
 Talaria\SilverStripe\Config:
   minLevel: warning
   maxBatchSize: 50
   flushIntervalMs: 2000
+  enableBrowserCms: true
+  enableBrowserFrontend: true
+  # Pin the npm package version loaded from jsDelivr
+  browserSdkVersion: '0.1.5'
+  browserReplaysSessionSampleRate: 0
+  browserReplaysOnErrorSampleRate: 1.0
+  # Optional: force inlineStylesheet on/off for both CMS and frontend
+  # browserInlineStylesheet: true
 ```
+
+If your public pages do **not** use `ContentController`, apply the same extension:
+
+```yaml
+PageController:
+  extensions:
+    - Talaria\SilverStripe\FrontendExtension
+```
+
+After config changes:
+
+```bash
+vendor/bin/sake dev/build flush=1
+```
+
+#### Publish / upgrade `@newtalaria/browser`
+
+Silverstripe loads the SDK from npm (jsDelivr), not from a local monorepo path.
+
+1. In `new_talaria_js/packages/browser`: bump version, `npm run build`, `npm publish`
+2. Set `browserSdkVersion` to that version (module default is `0.1.5`)
+3. Flush + hard-refresh `/admin`
+4. Confirm `window.__TALARIA_CONFIG__.inlineStylesheet === true` on CMS pages
+5. Trigger an error with replay sampling on; playback should include admin styling for same-origin sheets
 
 ## Batching
 
@@ -113,6 +162,8 @@ X-API-Key: tal_live_…
   }
 }
 ```
+
+Browser JS uses the published [`@newtalaria/browser`](https://www.npmjs.com/package/@newtalaria/browser) package (`POST {dsn}/events/ingest`) loaded from jsDelivr at the configured `browserSdkVersion`.
 
 ## Development
 

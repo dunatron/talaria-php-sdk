@@ -61,6 +61,88 @@ class Config
         return $options;
     }
 
+    /**
+     * Browser SDK init payload for Requirements injection, or null when disabled / misconfigured.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function toBrowserOptions(string $runtimeTag): ?array
+    {
+        $options = self::toClientOptions();
+        $dsn = is_string($options['dsn'] ?? null) ? $options['dsn'] : '';
+        $apiKey = is_string($options['apiKey'] ?? null) ? $options['apiKey'] : '';
+
+        if ($dsn === '' || $apiKey === '' || !str_starts_with($apiKey, 'tal_live_')) {
+            return null;
+        }
+
+        $browser = [
+            'dsn' => $dsn,
+            'apiKey' => $apiKey,
+            'environment' => $options['environment'] ?? 'development',
+            'replaysSessionSampleRate' => (float) (static::config()->get('browserReplaysSessionSampleRate') ?? 0),
+            'replaysOnErrorSampleRate' => (float) (static::config()->get('browserReplaysOnErrorSampleRate') ?? 0),
+            // Attached when @newtalaria/browser supports init tags; ignored on older versions.
+            'tags' => [
+                'runtime' => $runtimeTag,
+            ],
+            'inlineStylesheet' => self::resolveInlineStylesheet($runtimeTag),
+        ];
+
+        if (!empty($options['release']) && is_string($options['release'])) {
+            $browser['release'] = $options['release'];
+        }
+
+        return $browser;
+    }
+
+    /**
+     * CMS admin defaults to inlining same-origin CSS; frontend stays false unless YAML overrides.
+     */
+    private static function resolveInlineStylesheet(string $runtimeTag): bool
+    {
+        $override = static::config()->get('browserInlineStylesheet');
+        if ($override !== null) {
+            return (bool) $override;
+        }
+
+        return $runtimeTag === 'silverstripe-cms';
+    }
+
+    /**
+     * Published npm version of @newtalaria/browser to load from jsDelivr.
+     *
+     * @see https://www.npmjs.com/package/@newtalaria/browser
+     */
+    public static function browserSdkVersion(): string
+    {
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.5';
+        if (!is_string($version) || $version === '') {
+            return '0.1.5';
+        }
+
+        // Allow semver and npm tags like 0.1.5 or latest (prefer exact semver).
+        if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
+            return '0.1.5';
+        }
+
+        return $version;
+    }
+
+    public static function enableBrowserCms(): bool
+    {
+        $value = static::config()->get('enableBrowserCms');
+
+        return $value === null ? true : (bool) $value;
+    }
+
+    public static function enableBrowserFrontend(): bool
+    {
+        $value = static::config()->get('enableBrowserFrontend');
+
+        return $value === null ? true : (bool) $value;
+    }
+
     public static function minLevel(): string
     {
         $level = static::config()->get('minLevel') ?? 'warning';

@@ -24,6 +24,7 @@ App → Client (capture*) → EventQueue → POST /events/ingestBatch → Talari
 | ---- | ---- |
 | `src/` | Framework-agnostic SDK (`Talaria\`) |
 | `silverstripe/src/` | Thin Silverstripe adapter (`Talaria\SilverStripe\`) |
+| `client/` | Docs for npm `@newtalaria/browser` (loaded via jsDelivr, not vendored) |
 | `_config/` | Silverstripe YAML (vendormodule discovery) |
 | `tests/` | PHPUnit |
 

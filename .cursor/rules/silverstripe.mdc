@@ -4,14 +4,28 @@ globs:
   - "silverstripe/**"
   - "_config/**"
   - "_config.php"
+  - "client/**"
 ---
 
 # Silverstripe adapter
 
-Depends on core `Talaria\Client`. Integrate via Injector + Monolog — minimal app code changes.
+Depends on core `Talaria\Client` (PHP) and the published npm package [`@newtalaria/browser`](https://www.npmjs.com/package/@newtalaria/browser) (JS). Integrate via Injector + Monolog + Requirements — minimal app code changes.
+
+## PHP
 
 - `TalariaLogHandler` extends Monolog `AbstractProcessingHandler`
 - Config via YAML / env (`TALARIA_DSN`, `TALARIA_API_KEY`, …)
 - Capture Member id and request context when available
 - Do not put Silverstripe imports in `src/`
-- Same batch queue semantics as core SDK
+- Same batch queue semantics as core SDK (`ingestBatch`)
+
+## Browser JS
+
+- Load **`@newtalaria/browser` from npm** via jsDelivr ESM (`cdn.jsdelivr.net/npm/@newtalaria/browser@{version}/+esm`)
+- Do **not** vendor or build from a local `new_talaria_js` checkout for runtime
+- Pin version with `Talaria\SilverStripe\Config.browserSdkVersion`
+- Inject via `RequirementsHelper` + `LeftAndMainExtension` / `FrontendExtension`
+- Config JSON is `window.__TALARIA_CONFIG__`; module script calls `Talaria.init`
+- Same project `tal_live_` key as PHP; replay sample rates default to `0`
+- Tag events with `runtime=silverstripe-cms` or `silverstripe-frontend` (when the published SDK supports init `tags`)
+- CMS sets `inlineStylesheet: true` automatically; frontend defaults false; YAML `browserInlineStylesheet` overrides both
