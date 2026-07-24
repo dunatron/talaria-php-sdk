@@ -229,7 +229,7 @@ final class Client
 
         $event = new Event(
             message: $message,
-            environment: $this->config->environment,
+            environment: Environment::fromMixed($this->config->environment),
             level: $level,
             eventType: $level->toEventType(),
             title: $title,

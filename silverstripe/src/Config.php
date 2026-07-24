@@ -39,7 +39,7 @@ class Config
             $apiKey = self::env('TALARIA_API_KEY');
         }
         if ($environment === '') {
-            $environment = self::env('TALARIA_ENVIRONMENT') ?: 'development';
+            $environment = self::env('TALARIA_ENVIRONMENT') ?: 'production';
         }
         if ($release === '') {
             $release = self::env('TALARIA_RELEASE');
@@ -77,16 +77,12 @@ class Config
             return null;
         }
 
-        // Match PHP Client: map aliases (test/uat → staging) to EnvironmentWire.
-        try {
-            $environment = Environment::fromMixed(
-                is_string($options['environment'] ?? null) && $options['environment'] !== ''
-                    ? $options['environment']
-                    : 'development'
-            )->value;
-        } catch (\InvalidArgumentException) {
-            return null;
-        }
+        // Match PHP Client: map aliases (test/uat → staging); unknown → production.
+        $environment = Environment::fromMixed(
+            is_string($options['environment'] ?? null) && $options['environment'] !== ''
+                ? $options['environment']
+                : 'production'
+        )->value;
 
         $browser = [
             'dsn' => $dsn,

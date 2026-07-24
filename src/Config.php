@@ -11,7 +11,8 @@ final class Config
 {
     public readonly string $baseUrl;
     public readonly string $apiKey;
-    public readonly Environment $environment;
+    /** Normalized wire value: production | staging | development */
+    public readonly string $environment;
     public readonly ?string $release;
     public readonly float $sampleRate;
     public readonly int $maxBatchSize;
@@ -59,7 +60,8 @@ final class Config
 
         $this->baseUrl = rtrim($baseUrl, '/');
         $this->apiKey = trim($apiKey);
-        $this->environment = Environment::fromMixed($options['environment']);
+        // Expose the wire string so callers can use $cfg->environment without enum casts.
+        $this->environment = Environment::fromMixed($options['environment'])->value;
         $this->release = isset($options['release']) && is_string($options['release']) && $options['release'] !== ''
             ? $options['release']
             : null;
