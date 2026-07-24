@@ -7,11 +7,16 @@ namespace Talaria;
 /**
  * Wire environments accepted by Talaria ingest.
  */
-enum Environment: string
+enum Environment: string implements \Stringable
 {
     case Production = 'production';
     case Staging = 'staging';
     case Development = 'development';
+
+    public function __toString(): string
+    {
+        return $this->value;
+    }
 
     public static function fromMixed(string|Environment $environment): self
     {

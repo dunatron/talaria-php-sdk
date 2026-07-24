@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Talaria\SilverStripe;
 
 use SilverStripe\Core\Config\Configurable;
+use Talaria\Environment;
 
 /**
  * YAML / env-backed configuration for the Silverstripe adapter.
@@ -76,10 +77,21 @@ class Config
             return null;
         }
 
+        // Match PHP Client: map aliases (test/uat → staging) to EnvironmentWire.
+        try {
+            $environment = Environment::fromMixed(
+                is_string($options['environment'] ?? null) && $options['environment'] !== ''
+                    ? $options['environment']
+                    : 'development'
+            )->value;
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+
         $browser = [
             'dsn' => $dsn,
             'apiKey' => $apiKey,
-            'environment' => $options['environment'] ?? 'development',
+            'environment' => $environment,
             'replaysSessionSampleRate' => (float) (static::config()->get('browserReplaysSessionSampleRate') ?? 0),
             'replaysOnErrorSampleRate' => (float) (static::config()->get('browserReplaysOnErrorSampleRate') ?? 0),
             // Attached when @newtalaria/browser supports init tags; ignored on older versions.
@@ -144,14 +156,14 @@ class Config
      */
     public static function browserSdkVersion(): string
     {
-        $version = static::config()->get('browserSdkVersion') ?? '0.1.6';
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.12';
         if (!is_string($version) || $version === '') {
-            return '0.1.6';
+            return '0.1.12';
         }
 
-        // Allow semver and npm tags like 0.1.6 or latest (prefer exact semver).
+        // Allow semver and npm tags like 0.1.12 or latest (prefer exact semver).
         if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
-            return '0.1.6';
+            return '0.1.12';
         }
 
         return $version;

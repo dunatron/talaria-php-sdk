@@ -4,7 +4,7 @@ Silverstripe loads the published package **`@newtalaria/browser`** from the npm 
 
 - Package: https://www.npmjs.com/package/@newtalaria/browser
 - URL pattern: `https://cdn.jsdelivr.net/npm/@newtalaria/browser@{version}/+esm`
-- Version pin: `Talaria\SilverStripe\Config.browserSdkVersion` (default `0.1.6`)
+- Version pin: `Talaria\SilverStripe\Config.browserSdkVersion` (default `0.1.12`)
 
 CMS injects `inlineStylesheet: true` (auth-gated admin CSS) and `failedRequestStatusCodes: [[400, 599]]`. Frontend defaults to `inlineStylesheet: false` and `[[500, 599]]`. Override with `browserInlineStylesheet`, `browserCaptureFailedRequests`, and `browserFailedRequestStatusCodes` in YAML.
 

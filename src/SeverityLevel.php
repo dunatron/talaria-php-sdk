@@ -7,13 +7,18 @@ namespace Talaria;
 /**
  * Wire severity levels accepted by Talaria ingest.
  */
-enum SeverityLevel: string
+enum SeverityLevel: string implements \Stringable
 {
     case Debug = 'debug';
     case Info = 'info';
     case Warning = 'warning';
     case Error = 'error';
     case Fatal = 'fatal';
+
+    public function __toString(): string
+    {
+        return $this->value;
+    }
 
     public static function tryFromMixed(string|SeverityLevel $level): ?self
     {

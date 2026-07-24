@@ -15,6 +15,6 @@ Talaria\SilverStripe\Config:
   enableBrowserCms: true
   enableBrowserFrontend: true
   # Published npm package: https://www.npmjs.com/package/@newtalaria/browser
-  browserSdkVersion: '0.1.6'
+  browserSdkVersion: '0.1.12'
   # Replay sample rates default to 0 in PHP (Config::toBrowserOptions).
   # Do not set 0 here — that can overwrite app YAML depending on merge order.

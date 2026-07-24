@@ -23,4 +23,4 @@ Talaria\SilverStripe\Config:
   sampleRate: 1.0
   enableBrowserCms: true
   enableBrowserFrontend: true
-  browserSdkVersion: '0.1.6'
+  browserSdkVersion: '0.1.12'

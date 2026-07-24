@@ -98,7 +98,7 @@ Talaria\SilverStripe\Config:
   enableBrowserCms: true
   enableBrowserFrontend: true
   # Pin the npm package version loaded from jsDelivr
-  browserSdkVersion: '0.1.6'
+  browserSdkVersion: '0.1.12'
   browserReplaysSessionSampleRate: 0
   browserReplaysOnErrorSampleRate: 1.0
   # Optional: force inlineStylesheet on/off for both CMS and frontend
@@ -129,7 +129,7 @@ vendor/bin/sake dev/build flush=1
 Silverstripe loads the SDK from npm (jsDelivr), not from a local monorepo path.
 
 1. In `new_talaria_js/packages/browser`: bump version, `npm run build`, `npm publish`
-2. Set `browserSdkVersion` to that version (module default is `0.1.6`)
+2. Set `browserSdkVersion` to that version (module default is `0.1.12`)
 3. Flush + hard-refresh `/admin`
 4. Confirm `window.__TALARIA_CONFIG__.inlineStylesheet === true` on CMS pages
 5. Confirm `failedRequestStatusCodes` is `[[400,599]]` on CMS (and `[[500,599]]` on frontend)

@@ -24,4 +24,10 @@ final class SeverityLevelTest extends TestCase
         self::assertSame('info', SeverityLevel::Info->toEventType());
         self::assertSame('debug', SeverityLevel::Debug->toEventType());
     }
+
+    public function testStringableCast(): void
+    {
+        self::assertSame('info', (string) SeverityLevel::Info);
+        self::assertSame('error', (string) SeverityLevel::Error);
+    }
 }
