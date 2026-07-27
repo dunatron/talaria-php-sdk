@@ -8,11 +8,11 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
 
 /**
- * PSR-3 logger that forwards to Talaria\Client (queued, not sent immediately).
+ * PSR-3 logger that forwards to TalariaClient (queued, not sent immediately).
  */
 final class Logger extends AbstractLogger
 {
-    public function __construct(private readonly Client $client)
+    public function __construct(private readonly TalariaClient $client)
     {
     }
 

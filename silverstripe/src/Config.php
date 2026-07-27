@@ -77,7 +77,7 @@ class Config
             return null;
         }
 
-        // Match PHP Client: map aliases (test/uat → staging); unknown → production.
+        // Match TalariaClient: map aliases (test/uat → staging); unknown → production.
         $environment = Environment::fromMixed(
             is_string($options['environment'] ?? null) && $options['environment'] !== ''
                 ? $options['environment']

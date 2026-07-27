@@ -53,6 +53,8 @@ Talaria::flush(); // optional; also runs on shutdown when defaultIntegrations is
 
 ## Silverstripe
 
+Supported: **Silverstripe 4.13+ / 5 / 6** on **PHP 8.1+**.
+
 1. `composer require newtalaria/logging`
 2. Set environment variables (recommended):
 
@@ -71,7 +73,34 @@ vendor/bin/sake dev/build flush=1
 
 ### PHP (Monolog)
 
-The module pushes a Monolog `TalariaLogHandler` onto the default logger. Existing `Injector::inst()->get(LoggerInterface::class)->error(...)` calls are forwarded into the Talaria batch queue.
+The module pushes a Talaria Monolog handler onto the default logger (`talariaLogHandler` Injector service). Existing `Injector::inst()->get(LoggerInterface::class)->error(...)` calls are forwarded into the Talaria batch queue.
+
+### Compatibility: Silverstripe 4 / 5 / 6 and `psr/log`
+
+Silverstripe majors ship different logging stacks:
+
+| CMS | Monolog | Typical `psr/log` |
+| --- | --- | --- |
+| 4.x | 1.x (array records) | 1.x |
+| 5.x / 6.x | 3.x (`LogRecord`) | 2.x or 3.x |
+
+**Problem:** Pinning this package to `psr/log: ^3` and `monolog: ^3` only made Composer refuse install on sites that already resolved `psr/log` 1 or 2 (common on Silverstripe 4, and valid on Silverstripe 5 when Monolog pulled in v2). Separately, Monolog 1 and Monolog 3 define incompatible `AbstractProcessingHandler::write()` signatures (`array` vs `LogRecord`), so a single handler subclass cannot run on both.
+
+**What we do:**
+
+1. **Composer ranges** allow both stacks:
+   - `monolog/monolog: ^1.25 || ^3.0`
+   - `psr/log: ^1.0 || ^2.0 || ^3.0`
+2. **Two handler classes**, selected at runtime by `LogHandlerFactory`:
+   - `TalariaLogHandler` — Monolog 3 (SS5/6)
+   - `TalariaLogHandlerMonolog1` — Monolog 1 (SS4)
+3. Detection uses `class_exists(\Monolog\LogRecord::class)` so the Monolog 3 handler file is **not** autoloaded on SS4 (loading it would fatal on the signature mismatch).
+4. Injector wires a **neutral** service id (`talariaLogHandler`), not a concrete handler class name, for the same reason.
+5. Shared capture / Member / Director enrichment lives in `LogHandlerSupport`.
+
+**PHP floor remains 8.1** (core SDK uses enums / `readonly` / `match`). Silverstripe 4 on PHP 7.4 or 8.0 is not supported.
+
+If `composer require` still conflicts, check `composer why-not psr/log 3` / `composer why monolog/monolog` — another package may be forcing an impossible set; this module’s ranges alone should satisfy a stock SS4–6 tree.
 
 ### Browser JS (CMS + frontend)
 

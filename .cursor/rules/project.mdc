@@ -10,7 +10,7 @@ Language-agnostic ingest adapter for Talaria. Primary target: PHP / Silverstripe
 ## Role
 
 ```
-App → Client (capture*) → EventQueue → POST /events/ingestBatch → Talaria server
+App → TalariaClient (capture*) → EventQueue → POST /events/ingestBatch → Talaria server
 ```
 
 - Fingerprinting and issue grouping are **server-side only** — never compute fingerprints here
@@ -44,9 +44,17 @@ App → Client (capture*) → EventQueue → POST /events/ingestBatch → Talari
 - Parity reference: `@newtalaria/browser` transport (same camelCase + `__className__`)
 - Prefer live server behavior over `new_talaria/planning/php_sdk` prototype when they diverge
 
+## Silverstripe logging stack
+
+- Target CMS: **4.13+ / 5 / 6** (PHP 8.1+)
+- Allow `monolog ^1.25 \|\| ^3` and `psr/log ^1 \|\| ^2 \|\| ^3` — stock SS4 uses Monolog 1 + `psr/log` 1; SS5/6 use Monolog 3 + `psr/log` 2\|3
+- Dual handlers + factory; never force only `psr/log ^3`
+
 ## Explicit don'ts
 
 - Do not compute fingerprints
 - Do not call `events/ingest` for normal or flush paths — always `ingestBatch`
 - Do not retry unbounded on 429
 - Do not import Silverstripe types from `src/`
+- Do not pin `psr/log` to `^3` only (breaks SS4 and some SS5 resolves)
+- Do not autoload `TalariaLogHandler` (Monolog 3) when Monolog 1 is installed

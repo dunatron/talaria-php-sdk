@@ -4,13 +4,19 @@ After:
   - '#corelogging'
 ---
 SilverStripe\Core\Injector\Injector:
+  Talaria\TalariaClient:
+    factory: Talaria\SilverStripe\InjectorFactory
+  # Deprecated alias — prefer Talaria\TalariaClient
   Talaria\Client:
     factory: Talaria\SilverStripe\InjectorFactory
-  Talaria\SilverStripe\TalariaLogHandler:
+  # Neutral service id — factory returns TalariaLogHandler (Monolog 3) or
+  # TalariaLogHandlerMonolog1 (Monolog 1). Do not name this after either class
+  # so Injector never autoloads the wrong handler on SS4 / SS5+.
+  talariaLogHandler:
     factory: Talaria\SilverStripe\LogHandlerFactory
   Psr\Log\LoggerInterface:
     calls:
-      PushTalariaHandler: [ pushHandler, [ '%$Talaria\SilverStripe\TalariaLogHandler' ] ]
+      PushTalariaHandler: [ pushHandler, [ '%$talariaLogHandler' ] ]
 
 Talaria\SilverStripe\Config:
   dsn: '`TALARIA_DSN`'

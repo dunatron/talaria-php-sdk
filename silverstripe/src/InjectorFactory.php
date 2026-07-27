@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Talaria\SilverStripe;
 
 use SilverStripe\Core\Injector\Factory;
-use Talaria\Client;
+use Talaria\TalariaClient;
 use Talaria\Transport\NullTransport;
 
 /**
- * Builds a shared Talaria\Client from YAML / environment config.
+ * Builds a shared TalariaClient from YAML / environment config.
  *
  * When DSN/API key are missing, returns a disabled client so Install / flush
  * does not crash before env vars are set.
  */
 final class InjectorFactory implements Factory
 {
-    private static ?Client $client = null;
+    private static ?TalariaClient $client = null;
 
     /**
      * @param string $service
@@ -34,7 +34,7 @@ final class InjectorFactory implements Factory
 
         if ($dsn === '' || $apiKey === '' || !str_starts_with($apiKey, 'tal_live_')) {
             error_log('[Talaria] Silverstripe client disabled — set TALARIA_DSN and TALARIA_API_KEY.');
-            self::$client = new Client(
+            self::$client = new TalariaClient(
                 [
                     'dsn' => 'https://disabled.invalid',
                     'apiKey' => 'tal_live_disabled_placeholder_key_xxxxxxxxxxxx',
@@ -57,7 +57,7 @@ final class InjectorFactory implements Factory
             $options['tags']['silverstripe_version'] = SILVERSTRIPE_VERSION;
         }
 
-        self::$client = new Client($options);
+        self::$client = new TalariaClient($options);
 
         return self::$client;
     }

@@ -9,12 +9,12 @@ namespace Talaria;
  */
 final class Talaria
 {
-    private static ?Client $client = null;
+    private static ?TalariaClient $client = null;
 
     /**
      * @param array<string, mixed> $options
      */
-    public static function init(array $options): Client
+    public static function init(array $options): TalariaClient
     {
         if (self::$client !== null) {
             error_log('[Talaria] init() called more than once; ignoring subsequent init.');
@@ -22,12 +22,12 @@ final class Talaria
             return self::$client;
         }
 
-        self::$client = new Client($options);
+        self::$client = new TalariaClient($options);
 
         return self::$client;
     }
 
-    public static function getClient(): ?Client
+    public static function getClient(): ?TalariaClient
     {
         return self::$client;
     }
@@ -71,7 +71,7 @@ final class Talaria
         self::$client = null;
     }
 
-    private static function requireClient(): Client
+    private static function requireClient(): TalariaClient
     {
         if (self::$client === null) {
             throw new \RuntimeException('Talaria::init() must be called before capturing events.');

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Talaria\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Talaria\Client;
 use Talaria\SeverityLevel;
 use Talaria\Talaria;
+use Talaria\TalariaClient;
 
-final class ClientTest extends TestCase
+final class TalariaClientTest extends TestCase
 {
     protected function tearDown(): void
     {
@@ -19,7 +19,7 @@ final class ClientTest extends TestCase
     public function testCaptureMessageEnqueuesUntilFlush(): void
     {
         $transport = new FakeTransport();
-        $client = new Client([
+        $client = new TalariaClient([
             'dsn' => 'https://api.example.com',
             'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
             'environment' => 'development',
@@ -41,7 +41,7 @@ final class ClientTest extends TestCase
     public function testCaptureExceptionDefaultsToError(): void
     {
         $transport = new FakeTransport();
-        $client = new Client([
+        $client = new TalariaClient([
             'dsn' => 'https://api.example.com',
             'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
             'environment' => 'production',
@@ -63,7 +63,7 @@ final class ClientTest extends TestCase
     public function testSampleRateZeroDropsEvents(): void
     {
         $transport = new FakeTransport();
-        $client = new Client([
+        $client = new TalariaClient([
             'dsn' => 'https://api.example.com',
             'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
             'environment' => 'development',
@@ -96,5 +96,20 @@ final class ClientTest extends TestCase
         Talaria::captureMessage('sampled out');
         Talaria::flush();
         self::assertNotNull(Talaria::getClient());
+        self::assertInstanceOf(TalariaClient::class, Talaria::getClient());
+    }
+
+    public function testDeprecatedClientAlias(): void
+    {
+        self::assertTrue(class_exists(\Talaria\Client::class));
+        $transport = new FakeTransport();
+        $client = new \Talaria\Client([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'maxBatchSize' => 1,
+        ], $transport);
+        self::assertInstanceOf(TalariaClient::class, $client);
     }
 }

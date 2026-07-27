@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Talaria\Integration;
 
-use Talaria\Client;
+use Talaria\TalariaClient;
 
 /**
  * Captures uncaught exceptions / fatals and flushes the queue on shutdown.
@@ -19,7 +19,7 @@ final class ErrorIntegration
 
     private bool $registered = false;
 
-    public function __construct(private readonly Client $client)
+    public function __construct(private readonly TalariaClient $client)
     {
     }
 

@@ -16,7 +16,8 @@ Talaria::flush();
 Talaria::close();
 ```
 
-Also expose `Talaria\Client` for DI and `Talaria\Logger` (PSR-3).
+Also expose `Talaria\TalariaClient` for DI and `Talaria\Logger` (PSR-3).
+`Talaria\Client` remains a deprecated class alias of `TalariaClient`.
 
 ## Init options
 
