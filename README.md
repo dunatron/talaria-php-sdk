@@ -97,10 +97,37 @@ Silverstripe majors ship different logging stacks:
 3. Detection uses `class_exists(\Monolog\LogRecord::class)` so the Monolog 3 handler file is **not** autoloaded on SS4 (loading it would fatal on the signature mismatch).
 4. Injector wires a **neutral** service id (`talariaLogHandler`), not a concrete handler class name, for the same reason.
 5. Shared capture / Member / Director enrichment lives in `LogHandlerSupport`.
+6. **`Talaria\Logger` keeps an untyped PSR-3 `log()` signature** (see below).
 
 **PHP floor remains 8.1** (core SDK uses enums / `readonly` / `match`). Silverstripe 4 on PHP 7.4 or 8.0 is not supported.
 
 If `composer require` still conflicts, check `composer why-not psr/log 3` / `composer why monolog/monolog` — another package may be forcing an impossible set; this module’s ranges alone should satisfy a stock SS4–6 tree.
+
+#### `Talaria\Logger` and older `LoggerInterface::log()`
+
+psr/log **1.x** declares:
+
+```php
+public function log($level, $message, array $context = []);
+```
+
+with **no** `$message` type. A child that adds `\Stringable|string $message` is incompatible under PHP’s signature rules and fatals with:
+
+`Declaration … must be compatible with … LoggerInterface::log($level, $message…)`
+
+PSR-3 always described the message as a string or `__toString()` object; it never required a PHP parameter type. So `Talaria\Logger::log()` stays:
+
+```php
+public function log($level, $message, array $context = []): void
+```
+
+with the contract in PHPDoc and `(string) $message` at runtime. That remains compatible with psr/log **1, 2, and 3** (untyped parameters are wider than the typed ones on 2/3).
+
+CI runs PHPUnit against those three `psr/log` majors (see `.github/workflows/ci.yml`). Locally:
+
+```bash
+composer test:psr-log-matrix
+```
 
 ### Browser JS (CMS + frontend)
 
@@ -206,6 +233,7 @@ Browser JS uses the published [`@newtalaria/browser`](https://www.npmjs.com/pack
 ```bash
 composer install
 composer test
+composer test:psr-log-matrix   # psr/log 1.x + 2.x + 3.x
 ```
 
 ## License

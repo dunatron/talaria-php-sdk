@@ -9,6 +9,12 @@ use Psr\Log\LogLevel;
 
 /**
  * PSR-3 logger that forwards to TalariaClient (queued, not sent immediately).
+ *
+ * Parameter types on {@see log()} are intentionally omitted so this class stays
+ * compatible with every {@see \Psr\Log\LoggerInterface} shipped by psr/log 1.x,
+ * 2.x, and 3.x. Older interfaces declare `log($level, $message, …)` with no
+ * `$message` type; adding `\Stringable|string` makes the method incompatible
+ * and fatals on install. Document the PSR-3 contract in PHPDoc; cast at runtime.
  */
 final class Logger extends AbstractLogger
 {
@@ -17,11 +23,11 @@ final class Logger extends AbstractLogger
     }
 
     /**
-     * @param mixed $level
-     * @param \Stringable|string $message
+     * @param mixed $level PSR-3 level name or constant
+     * @param mixed $message String or stringable object (PSR-3); cast with (string)
      * @param array<string, mixed> $context
      */
-    public function log($level, \Stringable|string $message, array $context = []): void
+    public function log($level, $message, array $context = []): void
     {
         $levelString = is_string($level) ? $level : (string) $level;
         $severity = SeverityLevel::tryFromMixed($levelString) ?? SeverityLevel::Info;

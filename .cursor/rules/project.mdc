@@ -58,3 +58,4 @@ App → TalariaClient (capture*) → EventQueue → POST /events/ingestBatch →
 - Do not import Silverstripe types from `src/`
 - Do not pin `psr/log` to `^3` only (breaks SS4 and some SS5 resolves)
 - Do not autoload `TalariaLogHandler` (Monolog 3) when Monolog 1 is installed
+- Do not type `Talaria\Logger::log()` `$message` / `$level` (breaks psr/log 1.x `LoggerInterface`)

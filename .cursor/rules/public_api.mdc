@@ -19,6 +19,11 @@ Talaria::close();
 Also expose `Talaria\TalariaClient` for DI and `Talaria\Logger` (PSR-3).
 `Talaria\Client` remains a deprecated class alias of `TalariaClient`.
 
+`Talaria\Logger::log()` must keep **untyped** `$level` / `$message` parameters so the class
+implements psr/log 1.x, 2.x, and 3.x. Do not add `\Stringable|string` on `$message` —
+that fatals against older `LoggerInterface::log($level, $message, …)`. Document PSR-3 in
+PHPDoc; cast with `(string) $message` at runtime.
+
 ## Init options
 
 - Required: `dsn` or `baseUrl`, `apiKey`, `environment`

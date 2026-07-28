@@ -44,7 +44,8 @@
     "installer-name": "talaria-logging"
   },
   "scripts": {
-    "test": "phpunit"
+    "test": "phpunit",
+    "test:psr-log-matrix": "bash scripts/test-psr-log-matrix.sh"
   },
   "config": {
     "sort-packages": true

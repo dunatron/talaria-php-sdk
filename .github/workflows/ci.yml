@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} / psr/log ${{ matrix.psr-log }} / monolog ${{ matrix.monolog }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Silverstripe 4 stack
+          - php: "8.1"
+            psr-log: "1.1.4"
+            monolog: "1.27.1"
+          - php: "8.2"
+            psr-log: "1.1.4"
+            monolog: "1.27.1"
+          # Silverstripe 5/6 — psr/log 2
+          - php: "8.1"
+            psr-log: "2.0.0"
+            monolog: "3.5.0"
+          # Silverstripe 5/6 — psr/log 3
+          - php: "8.1"
+            psr-log: "3.0.0"
+            monolog: "3.5.0"
+          - php: "8.3"
+            psr-log: "3.0.0"
+            monolog: "3.5.0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies for matrix versions
+        run: |
+          composer require --no-update \
+            "psr/log:${{ matrix.psr-log }}" \
+            "monolog/monolog:${{ matrix.monolog }}"
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Prove Logger loads against this LoggerInterface
+        run: php -r 'require "vendor/autoload.php"; class_exists(Talaria\Logger::class) || exit(1); new ReflectionClass(Talaria\Logger::class); echo "ok\n";'
+
+      - name: PHPUnit
+        run: composer test
