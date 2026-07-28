@@ -33,7 +33,10 @@
     "psr-4": {
       "Talaria\\": "src/",
       "Talaria\\SilverStripe\\": "silverstripe/src/"
-    }
+    },
+    "exclude-from-classmap": [
+      "silverstripe/handlers/"
+    ]
   },
   "autoload-dev": {
     "psr-4": {

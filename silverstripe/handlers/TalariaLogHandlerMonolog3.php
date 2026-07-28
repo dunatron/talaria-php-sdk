@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Talaria\SilverStripe;
+namespace Talaria\SilverStripe\Handlers;
 
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
+use Talaria\SilverStripe\LogHandlerSupport;
 use Talaria\TalariaClient;
 
 /**
- * Monolog 3 handler (Silverstripe 5 / 6) that forwards records into the Talaria batch queue.
+ * Monolog 3 handler (LogRecord) — Silverstripe 5 / 6.
  *
- * Do not instantiate this class when Monolog 1 is installed — use
- * {@see LogHandlerFactory}, which selects {@see TalariaLogHandlerMonolog1} instead.
- * Loading this file against Monolog 1's AbstractProcessingHandler causes a fatal
- * signature mismatch (`write(LogRecord)` vs `write(array)`).
+ * Loaded only via {@see \Talaria\SilverStripe\LogHandlerFactory} require_once.
+ * Not registered in Composer PSR-4 so it cannot be autoloaded on Monolog 1/2
+ * (which would fatal: write(LogRecord) vs write(array)).
  */
-final class TalariaLogHandler extends AbstractProcessingHandler
+final class TalariaLogHandlerMonolog3 extends AbstractProcessingHandler
 {
     use LogHandlerSupport;
 

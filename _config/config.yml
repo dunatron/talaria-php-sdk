@@ -9,9 +9,8 @@ SilverStripe\Core\Injector\Injector:
   # Deprecated alias — prefer Talaria\TalariaClient
   Talaria\Client:
     factory: Talaria\SilverStripe\InjectorFactory
-  # Neutral service id — factory returns TalariaLogHandler (Monolog 3) or
-  # TalariaLogHandlerMonolog1 (Monolog 1). Do not name this after either class
-  # so Injector never autoloads the wrong handler on SS4 / SS5+.
+  # Neutral service id — never name this after a concrete handler class.
+  # Factory require_once's TalariaLogHandlerMonolog3 or …MonologLegacy only.
   talariaLogHandler:
     factory: Talaria\SilverStripe\LogHandlerFactory
   Psr\Log\LoggerInterface:

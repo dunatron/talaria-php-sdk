@@ -2,18 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Talaria\SilverStripe;
+namespace Talaria\SilverStripe\Handlers;
 
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Logger;
+use Talaria\SilverStripe\LogHandlerSupport;
 use Talaria\TalariaClient;
 
 /**
- * Monolog 1 handler (Silverstripe 4) that forwards array records into the Talaria batch queue.
+ * Monolog 1 / 2 handler (array records) — Silverstripe 4 and any Monolog 1.x / 2.x stack.
  *
- * Selected at runtime by {@see LogHandlerFactory} when {@see \Monolog\LogRecord} is absent.
+ * Loaded only via {@see \Talaria\SilverStripe\LogHandlerFactory} require_once.
+ * Not registered in Composer PSR-4 so it cannot be autoloaded by accident.
  */
-final class TalariaLogHandlerMonolog1 extends AbstractProcessingHandler
+final class TalariaLogHandlerMonologLegacy extends AbstractProcessingHandler
 {
     use LogHandlerSupport;
 

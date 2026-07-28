@@ -91,13 +91,16 @@ Silverstripe majors ship different logging stacks:
 1. **Composer ranges** allow both stacks:
    - `monolog/monolog: ^1.25 || ^3.0`
    - `psr/log: ^1.0 || ^2.0 || ^3.0`
-2. **Two handler classes**, selected at runtime by `LogHandlerFactory`:
-   - `TalariaLogHandler` — Monolog 3 (SS5/6)
-   - `TalariaLogHandlerMonolog1` — Monolog 1 (SS4)
-3. Detection uses `class_exists(\Monolog\LogRecord::class)` so the Monolog 3 handler file is **not** autoloaded on SS4 (loading it would fatal on the signature mismatch).
-4. Injector wires a **neutral** service id (`talariaLogHandler`), not a concrete handler class name, for the same reason.
-5. Shared capture / Member / Director enrichment lives in `LogHandlerSupport`.
-6. **`Talaria\Logger` keeps an untyped PSR-3 `log()` signature** (see below).
+2. **Two handler classes**, never a generic `TalariaLogHandler`:
+   - `Talaria\SilverStripe\Handlers\TalariaLogHandlerMonolog3` — Monolog 3 (`LogRecord`)
+   - `Talaria\SilverStripe\Handlers\TalariaLogHandlerMonologLegacy` — Monolog 1/2 (array records)
+3. **Handlers are not Composer-autoloaded.** They live in `silverstripe/handlers/` (outside the `Talaria\SilverStripe\` PSR-4 tree). `LogHandlerFactory` `require_once`s **only** the matching file after detecting Monolog via `class_exists(\Monolog\LogRecord::class)`.
+4. That matters because PHP validates `write()` against the parent as soon as the class file is loaded — **before** the factory’s `if` can help. If Injector, a stale config key, or anything else autoloads the Monolog 3 class on a Monolog 1 site, you get:
+   `Declaration of …::write(LogRecord) must be compatible with …::write(array)`.
+5. Injector uses a **neutral** service id (`talariaLogHandler`) + factory only — never a service named after a concrete handler class (SS may reflect/autoload the service name as a class).
+6. `silverstripe/handlers/_manifest_exclude` keeps Silverstripe’s class manifest from discovering those files.
+7. Shared capture / Member / Director enrichment lives in `LogHandlerSupport`.
+8. **`Talaria\Logger` keeps an untyped PSR-3 `log()` signature** (see below).
 
 **PHP floor remains 8.1** (core SDK uses enums / `readonly` / `match`). Silverstripe 4 on PHP 7.4 or 8.0 is not supported.
 

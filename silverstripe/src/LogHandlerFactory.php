@@ -12,10 +12,13 @@ use Talaria\TalariaClient;
 /**
  * Builds the Monolog-version-appropriate Talaria handler.
  *
- * Silverstripe 4 ships Monolog 1 (array records); Silverstripe 5/6 ship Monolog 3
- * ({@see \Monolog\LogRecord}). A single subclass cannot satisfy both
- * AbstractProcessingHandler::write() signatures, so we pick at runtime and avoid
- * autoloading the wrong handler class.
+ * Handler implementations live under {@see silverstripe/handlers/} and are
+ * **not** Composer-autoloaded. This factory require_once's exactly one file so
+ * PHP never compiles a Monolog 3 `write(LogRecord)` class against Monolog 1/2's
+ * `write(array)` abstract method (and vice versa).
+ *
+ * Detection: {@see \Monolog\LogRecord} exists only in Monolog 3+.
+ * Monolog 1 and 2 both use array records → Legacy handler.
  */
 final class LogHandlerFactory implements Factory
 {
@@ -29,12 +32,16 @@ final class LogHandlerFactory implements Factory
         $client = Injector::inst()->get(TalariaClient::class);
         $minLevel = Config::minLevel();
 
-        // LogRecord exists only in Monolog 3+. class_exists avoids loading the
-        // Monolog 3 handler file on SS4 (which would fatal on signature mismatch).
+        $handlersDir = dirname(__DIR__) . '/handlers';
+
         if (class_exists(\Monolog\LogRecord::class)) {
-            return new TalariaLogHandler($client, $minLevel);
+            require_once $handlersDir . '/TalariaLogHandlerMonolog3.php';
+
+            return new Handlers\TalariaLogHandlerMonolog3($client, $minLevel);
         }
 
-        return new TalariaLogHandlerMonolog1($client, $minLevel);
+        require_once $handlersDir . '/TalariaLogHandlerMonologLegacy.php';
+
+        return new Handlers\TalariaLogHandlerMonologLegacy($client, $minLevel);
     }
 }

@@ -16,10 +16,12 @@ Depends on core `Talaria\TalariaClient` (PHP) and the published npm package [`@n
 - Support Silverstripe **4.13+ / 5 / 6** on PHP **8.1+**
 - Composer: `monolog ^1.25 \|\| ^3`, `psr/log ^1 \|\| ^2 \|\| ^3` (do not pin `psr/log` to `^3` only)
 - Dual Monolog handlers — one class cannot implement both `write(array)` and `write(LogRecord)`:
-  - `TalariaLogHandler` — Monolog 3 (SS5/6)
-  - `TalariaLogHandlerMonolog1` — Monolog 1 (SS4)
-  - `LogHandlerFactory` picks via `class_exists(\Monolog\LogRecord::class)`; never autoload the wrong handler
-  - Shared logic in `LogHandlerSupport`; Injector service id is `talariaLogHandler` (neutral, not a class name)
+  - `Handlers\TalariaLogHandlerMonolog3` — Monolog 3 (SS5/6)
+  - `Handlers\TalariaLogHandlerMonologLegacy` — Monolog 1/2 (SS4)
+  - Files live in `silverstripe/handlers/` — **not** Composer PSR-4; `LogHandlerFactory` `require_once`s one file only
+  - Never ship a generic `TalariaLogHandler` class (Injector/autoload will load it and fatal on the wrong Monolog)
+  - Injector service id is `talariaLogHandler` (neutral) + factory; `_manifest_exclude` in `handlers/`
+  - Shared logic in `LogHandlerSupport`
 - Config via YAML / env (`TALARIA_DSN`, `TALARIA_API_KEY`, …)
 - Capture Member id and request context when available
 - Do not put Silverstripe imports in `src/`
