@@ -49,7 +49,13 @@ final class ErrorIntegration
     private function handleException(\Throwable $exception): void
     {
         try {
-            $this->client->captureException($exception);
+            $this->client->captureException($exception, [
+                'mechanism' => [
+                    'type' => 'generic',
+                    'handled' => false,
+                    'synthetic' => false,
+                ],
+            ]);
             $this->client->flush();
         } catch (\Throwable) {
             // never break host exception flow
@@ -74,7 +80,10 @@ final class ErrorIntegration
         $fatalish = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
         if (in_array($severity, $fatalish, true)) {
             try {
-                $this->client->captureException(new \ErrorException($message, 0, $severity, $file, $line));
+                $this->client->captureException(
+                    new \ErrorException($message, 0, $severity, $file, $line),
+                    self::unhandledMechanism(),
+                );
             } catch (\Throwable) {
                 // ignore
             }
@@ -94,13 +103,16 @@ final class ErrorIntegration
             $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR];
             if (in_array($error['type'], $fatalTypes, true)) {
                 try {
-                    $this->client->captureException(new \ErrorException(
-                        $error['message'],
-                        0,
-                        $error['type'],
-                        $error['file'],
-                        $error['line'],
-                    ));
+                    $this->client->captureException(
+                        new \ErrorException(
+                            $error['message'],
+                            0,
+                            $error['type'],
+                            $error['file'],
+                            $error['line'],
+                        ),
+                        self::unhandledMechanism(),
+                    );
                 } catch (\Throwable) {
                     // ignore
                 }
@@ -112,5 +124,19 @@ final class ErrorIntegration
         } catch (\Throwable) {
             // ignore
         }
+    }
+
+    /**
+     * @return array{mechanism: array{type: string, handled: bool, synthetic: bool}}
+     */
+    private static function unhandledMechanism(): array
+    {
+        return [
+            'mechanism' => [
+                'type' => 'generic',
+                'handled' => false,
+                'synthetic' => false,
+            ],
+        ];
     }
 }

@@ -7,6 +7,7 @@ namespace Talaria;
 use Talaria\Context\RuntimeContext;
 use Talaria\Exception\TransportException;
 use Talaria\Integration\ErrorIntegration;
+use Talaria\Protocol\ExceptionPayloadBuilder;
 use Talaria\Transport\EventQueue;
 use Talaria\Transport\ServerpodHttpTransport;
 use Talaria\Transport\TransportInterface;
@@ -77,6 +78,7 @@ final class TalariaClient
      *   extra?: array<string, mixed>,
      *   userId?: string|null,
      *   title?: string|null,
+     *   mechanism?: array{type?: string, handled?: bool, synthetic?: bool},
      * } $context
      */
     public function captureException(\Throwable $exception, array $context = []): void
@@ -85,27 +87,28 @@ final class TalariaClient
             return;
         }
 
+        $mechanism = is_array($context['mechanism'] ?? null) ? $context['mechanism'] : null;
+        $exceptionPayload = ExceptionPayloadBuilder::fromThrowable($exception, $mechanism);
+
         $extra = array_merge(
             $this->globalExtra,
             is_array($context['extra'] ?? null) ? $context['extra'] : [],
-            [
-                'exception_class' => $exception::class,
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'code' => $exception->getCode(),
-            ],
         );
+
+        $defaultTitle = ExceptionPayloadBuilder::shortName($exception);
 
         $this->enqueueBuilt(
             message: $exception->getMessage() !== '' ? $exception->getMessage() : $exception::class,
             level: SeverityLevel::Error,
-            title: is_string($context['title'] ?? null) ? $context['title'] : $exception::class,
+            title: is_string($context['title'] ?? null) ? $context['title'] : $defaultTitle,
             stackTrace: $exception->getTraceAsString(),
             context: [
                 'tags' => $context['tags'] ?? null,
                 'extra' => $extra,
                 'userId' => $context['userId'] ?? null,
             ],
+            exception: $exceptionPayload,
+            platform: 'php',
         );
     }
 
@@ -192,6 +195,7 @@ final class TalariaClient
      *   extra?: array<string, mixed>|null,
      *   userId?: string|null,
      * } $context
+     * @param array<string, mixed>|null $exception
      */
     private function enqueueBuilt(
         string $message,
@@ -199,6 +203,8 @@ final class TalariaClient
         ?string $title,
         ?string $stackTrace,
         array $context,
+        ?array $exception = null,
+        ?string $platform = null,
     ): void {
         $runtime = RuntimeContext::collect();
         $tags = array_merge(
@@ -242,6 +248,8 @@ final class TalariaClient
             tags: $tags !== [] ? $tags : null,
             extraJson: $extraJson,
             timestamp: RuntimeContext::isoTimestamp(),
+            exception: $exception,
+            platform: $platform,
         );
 
         $this->queue->enqueue($event);

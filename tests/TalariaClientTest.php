@@ -49,15 +49,59 @@ final class TalariaClientTest extends TestCase
             'maxBatchSize' => 1,
         ], $transport);
 
-        $client->captureException(new \RuntimeException('db down'));
+        $client->captureException(new \RuntimeException('db down'), [
+            'extra' => ['cart_id' => 'abc'],
+        ]);
         self::assertSame(1, $transport->batchCount());
         $event = $transport->batches[0][0];
         self::assertSame('db down', $event->message);
         self::assertSame('error', $event->level->value);
         self::assertSame('RuntimeException', $event->title);
         self::assertNotNull($event->stackTrace);
-        self::assertNotNull($event->extraJson);
-        self::assertStringContainsString('RuntimeException', (string) $event->extraJson);
+        self::assertSame('php', $event->platform);
+        self::assertNotNull($event->exception);
+        self::assertSame('ExceptionDataDto', $event->exception['__className__']);
+        self::assertSame(\RuntimeException::class, $event->exception['values'][0]['type']);
+        self::assertSame('db down', $event->exception['values'][0]['value']);
+        self::assertTrue($event->exception['values'][0]['mechanism']['handled']);
+        self::assertIsArray($event->exception['values'][0]['stacktrace']['frames']);
+
+        $wire = $event->toWire();
+        self::assertSame('php', $wire['platform']);
+        self::assertArrayHasKey('exception', $wire);
+        self::assertIsString($wire['extraJson']);
+        $extra = json_decode((string) $wire['extraJson'], true);
+        self::assertIsArray($extra);
+        self::assertSame('abc', $extra['cart_id']);
+        self::assertArrayNotHasKey('exception_class', $extra);
+        self::assertArrayNotHasKey('file', $extra);
+        self::assertArrayNotHasKey('line', $extra);
+        self::assertArrayNotHasKey('code', $extra);
+
+        foreach ($event->exception['values'][0]['stacktrace']['frames'] as $frame) {
+            self::assertArrayNotHasKey('function', $frame);
+            if (isset($frame['functionName'])) {
+                self::assertIsString($frame['functionName']);
+            }
+        }
+    }
+
+    public function testCaptureMessageHasNoException(): void
+    {
+        $transport = new FakeTransport();
+        $client = new TalariaClient([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'maxBatchSize' => 1,
+        ], $transport);
+
+        $client->captureMessage('hello');
+        $event = $transport->batches[0][0];
+        self::assertNull($event->exception);
+        self::assertNull($event->platform);
+        self::assertArrayNotHasKey('exception', $event->toWire());
     }
 
     public function testSampleRateZeroDropsEvents(): void

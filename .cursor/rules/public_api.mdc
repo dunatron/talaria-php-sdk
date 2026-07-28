@@ -33,6 +33,7 @@ PHPDoc; cast with `(string) $message` at runtime.
 
 - Exceptions default `level: error`; messages default `info`
 - Derive `eventType` from level
-- Context bag: `tags`, `extra`, `userId`, `title`
+- Context bag: `tags`, `extra`, `userId`, `title`, optional `mechanism` (`type` / `handled` / `synthetic`)
+- `captureException` builds first-class `exception.values[]` (frames oldest→newest, `functionName`); `extra` is app metadata only
 - Sampling happens before enqueue; sampled-out is success/no-op
 - Capture enqueues only — network I/O happens on queue drain

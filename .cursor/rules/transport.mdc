@@ -27,6 +27,8 @@ globs:
 - Even a single leftover event is a batch of one
 - `extra` → `extraJson` (JSON **string**); `tags` are string→string
 - Flat `userId` / `url` — not nested `user` / `request`
+- First-class `exception` (`ExceptionDataDto` / frames with `functionName`) — never put `exception_class` / `file` / `line` / `code` in `extra`
+- `platform: "php"` on exception events; keep raw `stackTrace` string alongside structured frames
 
 ## EventQueue drain triggers
 

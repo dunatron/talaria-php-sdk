@@ -25,8 +25,13 @@ final class EventTest extends TestCase
             requestId: 'req-1',
             url: 'https://example.com/checkout',
             tags: ['module' => 'checkout'],
-            extraJson: '{"exception_class":"RuntimeException"}',
+            extraJson: '{"cart_id":"abc"}',
             timestamp: '2026-07-19T10:00:00.000Z',
+            exception: [
+                '__className__' => 'ExceptionDataDto',
+                'values' => [],
+            ],
+            platform: 'php',
         );
 
         $wire = $event->toWire();
@@ -44,8 +49,10 @@ final class EventTest extends TestCase
         self::assertSame('req-1', $wire['requestId']);
         self::assertSame('https://example.com/checkout', $wire['url']);
         self::assertSame(['module' => 'checkout'], $wire['tags']);
-        self::assertSame('{"exception_class":"RuntimeException"}', $wire['extraJson']);
+        self::assertSame('{"cart_id":"abc"}', $wire['extraJson']);
         self::assertSame('2026-07-19T10:00:00.000Z', $wire['timestamp']);
+        self::assertSame('php', $wire['platform']);
+        self::assertSame('ExceptionDataDto', $wire['exception']['__className__']);
         self::assertArrayNotHasKey('stack_trace', $wire);
     }
 

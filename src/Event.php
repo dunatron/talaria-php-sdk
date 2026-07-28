@@ -9,7 +9,10 @@ namespace Talaria;
  */
 final class Event
 {
-    /** @param array<string, string>|null $tags */
+    /**
+     * @param array<string, string>|null $tags
+     * @param array<string, mixed>|null $exception Wire-ready ExceptionDataDto tree
+     */
     public function __construct(
         public readonly string $message,
         public readonly Environment $environment,
@@ -25,6 +28,8 @@ final class Event
         public readonly ?array $tags = null,
         public readonly ?string $extraJson = null,
         public readonly ?string $timestamp = null,
+        public readonly ?array $exception = null,
+        public readonly ?string $platform = null,
     ) {
         if (trim($message) === '') {
             throw new \InvalidArgumentException('Event message must not be empty.');
@@ -49,6 +54,12 @@ final class Event
         }
         if ($this->stackTrace !== null && $this->stackTrace !== '') {
             $wire['stackTrace'] = $this->stackTrace;
+        }
+        if ($this->exception !== null && $this->exception !== []) {
+            $wire['exception'] = $this->exception;
+        }
+        if ($this->platform !== null && $this->platform !== '') {
+            $wire['platform'] = $this->platform;
         }
         if ($this->release !== null && $this->release !== '') {
             $wire['release'] = $this->release;

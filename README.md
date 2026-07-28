@@ -219,15 +219,53 @@ X-API-Key: tal_live_…
     "events": [
       {
         "__className__": "IngestEventInput",
-        "message": "…",
+        "message": "SQLSTATE[HY000] [2002] Connection refused",
         "environment": "production",
         "level": "error",
-        "eventType": "error"
+        "eventType": "error",
+        "title": "PDOException",
+        "platform": "php",
+        "stackTrace": "#0 ...\n#1 ...",
+        "exception": {
+          "__className__": "ExceptionDataDto",
+          "values": [
+            {
+              "__className__": "ExceptionValueDto",
+              "type": "PDOException",
+              "value": "SQLSTATE[HY000] [2002] Connection refused",
+              "code": "0",
+              "mechanism": {
+                "__className__": "ExceptionMechanismDto",
+                "type": "generic",
+                "handled": true,
+                "synthetic": false
+              },
+              "stacktrace": {
+                "__className__": "StackTraceDto",
+                "frames": [
+                  {
+                    "__className__": "StackFrameDto",
+                    "filename": "PaymentService.php",
+                    "absPath": "/var/www/app/src/Checkout/PaymentService.php",
+                    "functionName": "App\\Checkout\\PaymentService::charge",
+                    "lineno": 88,
+                    "inApp": true,
+                    "platform": "php"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "extraJson": "{\"cart_id\":\"abc\"}",
+        "tags": { "service": "my-app" }
       }
     ]
   }
 }
 ```
+
+`captureException` sends a first-class `exception` object (structured frames, oldest → newest; wire field `functionName`). Application metadata goes in `extra` and is serialized as `extraJson` (a JSON **string**) — never put `exception_class` / `file` / `line` / `code` there. `captureMessage` does not synthesize an exception.
 
 Browser JS uses the published [`@newtalaria/browser`](https://www.npmjs.com/package/@newtalaria/browser) package (`POST {dsn}/events/ingest`) loaded from jsDelivr at the configured `browserSdkVersion`.
 
