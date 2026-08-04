@@ -200,60 +200,24 @@ Prefer `addProcessor()` over `setTags()` for per-request dimensions on long-live
 
 Supported: **Silverstripe 4.13+ / 5 / 6** on **PHP 8.1+**.
 
-1. `composer require newtalaria/logging`
-2. Set environment variables:
-
-```
-TALARIA_DSN="https://api.newtalaria.com"
-# Optional: browser inject only when PHP DSN is not browser-reachable
-# TALARIA_BROWSER_DSN="https://api.newtalaria.com"
-TALARIA_API_KEY="tal_live_…"
-TALARIA_ENVIRONMENT="production"
-TALARIA_RELEASE="1.2.3"
+```bash
+composer require newtalaria/logging
 ```
 
-3. Flush config: `vendor/bin/sake dev/build flush=1`
+Set `TALARIA_DSN`, `TALARIA_API_KEY`, `TALARIA_ENVIRONMENT`, and optional `TALARIA_RELEASE` / `TALARIA_BROWSER_DSN`, then:
 
-### Monolog / Injector (recommended on SS)
-
-The module pushes a Talaria Monolog handler onto the default `LoggerInterface` (YAML `minLevel` default **`warning`**). Application code should type-hint `Psr\Log\LoggerInterface` — not `TalariaClient` — so call sites stay vendor-agnostic.
-
-The same YAML `minLevel` is also applied to the shared `TalariaClient`, so direct `Talaria::info(…)` calls share the floor.
-
-```php
-use Psr\Log\LoggerInterface;
-
-public function __construct(private LoggerInterface $logger) {}
-
-public function pay(): void
-{
-    $this->logger->warning('Payment method missing', [
-        'tags' => ['feature' => 'checkout'],
-    ]);
-}
+```bash
+vendor/bin/sake dev/build flush=1
 ```
 
-Pass throwables under the `exception` context key so the handler calls `captureException` with a proper stack.
+**Two logging approaches** (can coexist):
 
-Optional YAML:
+1. **Monolog / `LoggerInterface`** — default Injector path; type-hint PSR-3; YAML `minLevel` (default `warning`)
+2. **Talaria Logger** — scoped tags, `child`, `withMinLevel`, `captureException` (wrap the Injector `TalariaClient`; do not double-`init`)
 
-```yaml
-Talaria\SilverStripe\Config:
-  minLevel: warning
-  service: 'my-site'
-  tags:
-    team: 'platform'
-  browserSdkVersion: '0.1.21'
-```
+Full walkthrough, YAML examples, hybrid recommendation, browser inject, and troubleshooting: **[docs/silverstripe.md](docs/silverstripe.md)**.
 
-### Browser inject (optional)
-
-The module can load [`@newtalaria/browser`](https://www.npmjs.com/package/@newtalaria/browser) from jsDelivr into CMS / frontend pages (pin via `browserSdkVersion`, default **0.1.21**). See [`client/README.md`](client/README.md).
-
-### Compatibility notes
-
-- Dual Monolog 1/3 handlers live under `silverstripe/handlers/` and are loaded by factory `require_once` only (not PSR-4) so the wrong Monolog major cannot autoload-fatal.
-- `Talaria\Logger::log()` keeps **untyped** `$level` / `$message` parameters for psr/log 1.x–3.x compatibility.
+Browser CDN pin and inject details: [`client/README.md`](client/README.md) (default `browserSdkVersion` **0.1.21**).
 
 ## Batching
 
