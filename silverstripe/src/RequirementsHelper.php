@@ -15,13 +15,16 @@ final class RequirementsHelper
 {
     private static bool $injected = false;
 
-    public static function inject(string $runtimeTag): void
+    /**
+     * @param array<string, string> $extraTags
+     */
+    public static function inject(string $runtimeTag, array $extraTags = []): void
     {
         if (self::$injected) {
             return;
         }
 
-        $config = Config::toBrowserOptions($runtimeTag);
+        $config = Config::toBrowserOptions($runtimeTag, $extraTags);
         if ($config === null) {
             return;
         }
@@ -46,12 +49,14 @@ final class RequirementsHelper
         );
 
         // Classic Requirements::javascript cannot load ESM; use a module script.
+        // Expose window.Talaria after init so page scripts can call capture* / flush
+        // on the shipped singleton (same global surface as the IIFE build).
         Requirements::insertHeadTags(
             '<script type="module">'
             . 'import { Talaria } from ' . json_encode($importUrl, JSON_UNESCAPED_SLASHES) . ';'
             . 'var cfg = window.__TALARIA_CONFIG__;'
             . 'if (cfg && Talaria && typeof Talaria.init === "function") {'
-            . '  try { Talaria.init(cfg); }'
+            . '  try { Talaria.init(cfg); window.Talaria = Talaria; }'
             . '  catch (err) { if (typeof console !== "undefined" && console.warn) console.warn("[Talaria] browser init failed", err); }'
             . '}'
             . '</script>',

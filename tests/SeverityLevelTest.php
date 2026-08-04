@@ -24,4 +24,12 @@ final class SeverityLevelTest extends TestCase
         self::assertSame('info', SeverityLevel::Info->toEventType());
         self::assertSame('debug', SeverityLevel::Debug->toEventType());
     }
+
+    public function testRankAndAtLeast(): void
+    {
+        self::assertTrue(SeverityLevel::Error->atLeast(SeverityLevel::Warning));
+        self::assertFalse(SeverityLevel::Info->atLeast(SeverityLevel::Warning));
+        self::assertSame(SeverityLevel::Error, SeverityLevel::max(SeverityLevel::Debug, SeverityLevel::Error));
+        self::assertSame(SeverityLevel::Fatal, SeverityLevel::max(SeverityLevel::Fatal, SeverityLevel::Warning));
+    }
 }

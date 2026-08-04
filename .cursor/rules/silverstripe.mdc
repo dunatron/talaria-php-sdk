@@ -26,15 +26,21 @@ Depends on core `Talaria\TalariaClient` (PHP) and the published npm package [`@n
 - Capture Member id and request context when available
 - Do not put Silverstripe imports in `src/`
 - Same batch queue semantics as core SDK (`ingestBatch`)
+- Filterable auto-tags: `platform=php`, `runtime=silverstripe`, `runtime_version`, plus per-request `ajax` / `ss_env` / `host` via `RequestTags` processor (not `setTags` on the singleton)
+- Core also emits `cli` and `php.version` via `RuntimeContext`
+- Optional YAML `service` / `tags` merge into init tags
 
 ## Browser JS
 
 - Load **`@newtalaria/browser` from npm** via jsDelivr ESM (`cdn.jsdelivr.net/npm/@newtalaria/browser@{version}/+esm`)
 - Do **not** vendor or build from a local `new_talaria_js` checkout for runtime
-- Pin version with `Talaria\SilverStripe\Config.browserSdkVersion`
+- Pin version with `Talaria\SilverStripe\Config.browserSdkVersion` (default **0.1.21+**)
 - Inject via `RequirementsHelper` + `LeftAndMainExtension` / `FrontendExtension`
-- Config JSON is `window.__TALARIA_CONFIG__`; module script calls `Talaria.init`
+- Config JSON is `window.__TALARIA_CONFIG__`; module script calls `Talaria.init` and assigns `window.Talaria`
+- Optional `browserDsn` / `TALARIA_BROWSER_DSN` for browser inject when PHP `dsn` is not browser-reachable (mixed content / Docker-internal hosts)
 - Same project `tal_live_` key as PHP; replay sample rates default to `0`
-- Tag events with `runtime=silverstripe-cms` or `silverstripe-frontend` (when the published SDK supports init `tags`)
+- Init tags: `platform=web`, `runtime=silverstripe-cms|silverstripe-frontend`, `runtime_version`, `ss_env`, `host`, optional `service` / `browserTags`, CMS `ss.section`
+- Init `userId` from current Member when logged in
 - CMS sets `inlineStylesheet: true` automatically; frontend defaults false; YAML `browserInlineStylesheet` overrides both
 - CMS promotes failed HTTP **400–599** to events; frontend **500–599**; YAML `browserFailedRequestStatusCodes` / `browserCaptureFailedRequests` override
+- Dashboard filters by tags + first-class fields — not `extra`. Keep tags low-cardinality (max ~20/event)

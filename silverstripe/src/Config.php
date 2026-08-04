@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Talaria\SilverStripe;
 
 use SilverStripe\Core\Config\Configurable;
+use Talaria\Config as SdkConfig;
 use Talaria\Environment;
 
 /**
@@ -12,6 +13,7 @@ use Talaria\Environment;
  *
  * Prefer environment variables:
  * - TALARIA_DSN
+ * - TALARIA_BROWSER_DSN (optional; browser inject only — use when PHP DSN is not browser-reachable, e.g. http://host.docker.internal behind an HTTPS site)
  * - TALARIA_API_KEY
  * - TALARIA_ENVIRONMENT
  * - TALARIA_RELEASE (optional)
@@ -31,6 +33,7 @@ class Config
         $apiKey = self::resolveString($cfg->get('apiKey') ?? '');
         $environment = self::resolveString($cfg->get('environment') ?? '');
         $release = self::resolveString($cfg->get('release') ?? '');
+        $service = self::resolveString($cfg->get('service') ?? '');
 
         if ($dsn === '') {
             $dsn = self::env('TALARIA_DSN');
@@ -52,11 +55,24 @@ class Config
             'maxBatchSize' => (int) ($cfg->get('maxBatchSize') ?? 50),
             'flushIntervalMs' => (int) ($cfg->get('flushIntervalMs') ?? 2000),
             'sampleRate' => (float) ($cfg->get('sampleRate') ?? 1.0),
+            'minLevel' => self::minLevel(),
             'defaultIntegrations' => true,
         ];
 
         if ($release !== '') {
             $options['release'] = $release;
+        }
+
+        $tags = [];
+        if ($service !== '') {
+            $tags['service'] = $service;
+        }
+        $yamlTags = $cfg->get('tags');
+        if (is_array($yamlTags)) {
+            $tags = array_merge($tags, $yamlTags);
+        }
+        if ($tags !== []) {
+            $options['tags'] = SdkConfig::normalizeTags($tags);
         }
 
         return $options;
@@ -65,12 +81,13 @@ class Config
     /**
      * Browser SDK init payload for Requirements injection, or null when disabled / misconfigured.
      *
+     * @param array<string, string> $extraTags CMS/frontend-only tags (e.g. ss.section)
      * @return array<string, mixed>|null
      */
-    public static function toBrowserOptions(string $runtimeTag): ?array
+    public static function toBrowserOptions(string $runtimeTag, array $extraTags = []): ?array
     {
         $options = self::toClientOptions();
-        $dsn = is_string($options['dsn'] ?? null) ? $options['dsn'] : '';
+        $dsn = self::resolveBrowserDsn($options);
         $apiKey = is_string($options['apiKey'] ?? null) ? $options['apiKey'] : '';
 
         if ($dsn === '' || $apiKey === '' || !str_starts_with($apiKey, 'tal_live_')) {
@@ -84,16 +101,39 @@ class Config
                 : 'production'
         )->value;
 
+        $tags = [
+            'platform' => 'web',
+            'runtime' => $runtimeTag,
+        ];
+
+        $runtimeVersion = FrameworkVersion::resolve();
+        if ($runtimeVersion !== null) {
+            $tags['runtime_version'] = $runtimeVersion;
+        }
+
+        $tags = array_merge($tags, RequestTags::collect());
+
+        $service = self::resolveString(static::config()->get('service') ?? '');
+        if ($service !== '') {
+            $tags['service'] = $service;
+        }
+
+        $browserTags = static::config()->get('browserTags');
+        if (is_array($browserTags)) {
+            $tags = array_merge($tags, $browserTags);
+        }
+
+        if ($extraTags !== []) {
+            $tags = array_merge($tags, $extraTags);
+        }
+
         $browser = [
             'dsn' => $dsn,
             'apiKey' => $apiKey,
             'environment' => $environment,
             'replaysSessionSampleRate' => (float) (static::config()->get('browserReplaysSessionSampleRate') ?? 0),
             'replaysOnErrorSampleRate' => (float) (static::config()->get('browserReplaysOnErrorSampleRate') ?? 0),
-            // Attached when @newtalaria/browser supports init tags; ignored on older versions.
-            'tags' => [
-                'runtime' => $runtimeTag,
-            ],
+            'tags' => SdkConfig::normalizeTags($tags),
             'inlineStylesheet' => self::resolveInlineStylesheet($runtimeTag),
             'captureFailedRequests' => self::resolveCaptureFailedRequests(),
             'failedRequestStatusCodes' => self::resolveFailedRequestStatusCodes($runtimeTag),
@@ -103,7 +143,32 @@ class Config
             $browser['release'] = $options['release'];
         }
 
+        $userId = self::resolveMemberUserId();
+        if ($userId !== null) {
+            $browser['userId'] = $userId;
+        }
+
         return $browser;
+    }
+
+    /**
+     * Browser DSN: YAML/env `browserDsn` / TALARIA_BROWSER_DSN, else PHP client DSN.
+     *
+     * @param array<string, mixed> $clientOptions
+     */
+    private static function resolveBrowserDsn(array $clientOptions): string
+    {
+        $browserDsn = self::resolveString(static::config()->get('browserDsn') ?? '');
+        if ($browserDsn === '') {
+            $browserDsn = self::env('TALARIA_BROWSER_DSN');
+        }
+        if ($browserDsn !== '') {
+            return rtrim($browserDsn, '/');
+        }
+
+        $dsn = is_string($clientOptions['dsn'] ?? null) ? $clientOptions['dsn'] : '';
+
+        return $dsn !== '' ? rtrim($dsn, '/') : '';
     }
 
     /**
@@ -152,14 +217,14 @@ class Config
      */
     public static function browserSdkVersion(): string
     {
-        $version = static::config()->get('browserSdkVersion') ?? '0.1.12';
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.21';
         if (!is_string($version) || $version === '') {
-            return '0.1.12';
+            return '0.1.21';
         }
 
-        // Allow semver and npm tags like 0.1.12 or latest (prefer exact semver).
+        // Allow semver and npm tags like 0.1.21 or latest (prefer exact semver).
         if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
-            return '0.1.12';
+            return '0.1.21';
         }
 
         return $version;
@@ -184,6 +249,24 @@ class Config
         $level = static::config()->get('minLevel') ?? 'warning';
 
         return is_string($level) && $level !== '' ? $level : 'warning';
+    }
+
+    private static function resolveMemberUserId(): ?string
+    {
+        if (!class_exists(\SilverStripe\Security\Security::class)) {
+            return null;
+        }
+
+        try {
+            $member = \SilverStripe\Security\Security::getCurrentUser();
+            if ($member !== null && isset($member->ID) && (string) $member->ID !== '') {
+                return (string) $member->ID;
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        return null;
     }
 
     private static function env(string $key): string

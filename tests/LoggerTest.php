@@ -84,6 +84,40 @@ final class LoggerTest extends TestCase
         self::assertSame('error', $transport->batches[0][0]->level->value);
     }
 
+    public function testInterpolatesPlaceholders(): void
+    {
+        $transport = new FakeTransport();
+        $logger = $this->makeLogger($transport);
+
+        $logger->warning('order {order_id} failed', ['order_id' => '42', 'tags' => ['feature' => 'checkout']]);
+        $this->clientFrom($logger)->flush();
+
+        self::assertSame('order 42 failed', $transport->batches[0][0]->message);
+        self::assertSame('checkout', $transport->batches[0][0]->tags['feature'] ?? null);
+    }
+
+    public function testScopedLoggerRespectsMinLevel(): void
+    {
+        $transport = new FakeTransport();
+        $client = new TalariaClient([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'minLevel' => 'info',
+            'maxBatchSize' => 50,
+            'flushIntervalMs' => 60_000,
+        ], $transport);
+
+        $logger = new Logger($client, ['tags' => ['feature' => 'blog'], 'minLevel' => 'error']);
+        $logger->warning('dropped');
+        $logger->error('kept');
+        $client->flush();
+
+        self::assertSame(['kept'], array_map(static fn ($e) => $e->message, $transport->allEvents()));
+        self::assertSame('blog', $transport->allEvents()[0]->tags['feature'] ?? null);
+    }
+
     private function makeLogger(FakeTransport $transport): Logger
     {
         $client = new TalariaClient([

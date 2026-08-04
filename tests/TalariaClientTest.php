@@ -156,4 +156,45 @@ final class TalariaClientTest extends TestCase
         ], $transport);
         self::assertInstanceOf(TalariaClient::class, $client);
     }
+
+    public function testAutoTagsAndMergeOrder(): void
+    {
+        $transport = new FakeTransport();
+        $client = new TalariaClient([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'maxBatchSize' => 1,
+            'tags' => [
+                'runtime' => 'silverstripe',
+                'cli' => 'from-global',
+            ],
+        ], $transport);
+
+        $client->addProcessor(static function (array $bag): array {
+            return [
+                'tags' => [
+                    'ajax' => 'true',
+                    'cli' => 'from-processor',
+                ],
+            ];
+        });
+
+        $client->captureMessage('tagged', SeverityLevel::Info, [
+            'tags' => [
+                'feature' => 'checkout',
+                'cli' => 'from-call',
+            ],
+        ]);
+
+        $tags = $transport->batches[0][0]->tags;
+        self::assertIsArray($tags);
+        self::assertSame(PHP_VERSION, $tags['php.version']);
+        self::assertSame('silverstripe', $tags['runtime']);
+        self::assertSame('true', $tags['ajax']);
+        self::assertSame('checkout', $tags['feature']);
+        // Later wins: per-call overrides processor/global/auto for the same key.
+        self::assertSame('from-call', $tags['cli']);
+    }
 }

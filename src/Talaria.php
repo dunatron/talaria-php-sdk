@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Talaria;
 
 /**
- * Static facade mirroring the JS SDK singleton API.
+ * Static facade mirroring the browser SDK singleton API.
  */
 final class Talaria
 {
@@ -30,6 +30,96 @@ final class Talaria
     public static function getClient(): ?TalariaClient
     {
         return self::$client;
+    }
+
+    /**
+     * @param array{tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
+     */
+    public static function logger(array $options = []): Logger
+    {
+        return self::requireClient()->logger($options);
+    }
+
+    /**
+     * @param array<string, string> $tags
+     */
+    public static function withTags(array $tags): Logger
+    {
+        return self::requireClient()->withTags($tags);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function debug(string $message, array $context = []): void
+    {
+        self::requireClient()->debug($message, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function info(string $message, array $context = []): void
+    {
+        self::requireClient()->info($message, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function warning(string $message, array $context = []): void
+    {
+        self::requireClient()->warning($message, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function warn(string $message, array $context = []): void
+    {
+        self::requireClient()->warn($message, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function error(string $message, array $context = []): void
+    {
+        self::requireClient()->error($message, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function fatal(string $message, array $context = []): void
+    {
+        self::requireClient()->fatal($message, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public static function log(
+        string|SeverityLevel $level,
+        string $message,
+        array $context = [],
+    ): void {
+        self::requireClient()->log($level, $message, $context);
+    }
+
+    public static function getMinLevel(): SeverityLevel
+    {
+        return self::requireClient()->getMinLevel();
+    }
+
+    public static function setMinLevel(string|SeverityLevel $level): void
+    {
+        self::requireClient()->setMinLevel($level);
+    }
+
+    public static function isLevelEnabled(string|SeverityLevel $level): bool
+    {
+        return self::requireClient()->isLevelEnabled($level);
     }
 
     /**

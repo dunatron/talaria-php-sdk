@@ -46,4 +46,28 @@ enum SeverityLevel: string
             self::Info => 'info',
         };
     }
+
+    /** Rank from lowest (0) to highest (4) severity. */
+    public function rank(): int
+    {
+        return match ($this) {
+            self::Debug => 0,
+            self::Info => 1,
+            self::Warning => 2,
+            self::Error => 3,
+            self::Fatal => 4,
+        };
+    }
+
+    /** True when this level is at least as severe as `$min`. */
+    public function atLeast(self $min): bool
+    {
+        return $this->rank() >= $min->rank();
+    }
+
+    /** Higher (stricter floor) of two severities. */
+    public static function max(self $a, self $b): self
+    {
+        return $a->rank() >= $b->rank() ? $a : $b;
+    }
 }

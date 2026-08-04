@@ -19,6 +19,29 @@ class LeftAndMainExtension extends Extension
             return;
         }
 
-        RequirementsHelper::inject('silverstripe-cms');
+        $extraTags = [];
+        $section = self::resolveSectionTag($this->getOwner());
+        if ($section !== null) {
+            $extraTags['ss.section'] = $section;
+        }
+
+        RequirementsHelper::inject('silverstripe-cms', $extraTags);
+    }
+
+    private static function resolveSectionTag(object $owner): ?string
+    {
+        $class = $owner::class;
+        $short = strrchr($class, '\\');
+        $short = is_string($short) ? substr($short, 1) : $class;
+        if (!is_string($short) || $short === '') {
+            return null;
+        }
+
+        // Keep tag values low-cardinality and within server limits.
+        if (strlen($short) > 128) {
+            $short = substr($short, 0, 128);
+        }
+
+        return $short;
     }
 }

@@ -19,6 +19,9 @@ SilverStripe\Core\Injector\Injector:
 
 Talaria\SilverStripe\Config:
   dsn: '`TALARIA_DSN`'
+  # Optional: browser inject only (falls back to dsn). Use when PHP DSN is not
+  # reachable from the browser (e.g. http://host.docker.internal behind HTTPS).
+  browserDsn: '`TALARIA_BROWSER_DSN`'
   apiKey: '`TALARIA_API_KEY`'
   environment: '`TALARIA_ENVIRONMENT`'
   release: '`TALARIA_RELEASE`'
@@ -28,4 +31,11 @@ Talaria\SilverStripe\Config:
   sampleRate: 1.0
   enableBrowserCms: true
   enableBrowserFrontend: true
-  browserSdkVersion: '0.1.12'
+  browserSdkVersion: '0.1.21'
+  # Optional filterable app name (reserved tag key `service`)
+  # service: 'my-site'
+  # Optional PHP + browser init tags (string→string, low cardinality)
+  # tags:
+  #   team: 'platform'
+  # browserTags:
+  #   area: 'marketing'

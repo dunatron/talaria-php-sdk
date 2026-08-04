@@ -10,7 +10,12 @@ namespace Talaria\Context;
 final class RuntimeContext
 {
     /**
-     * @return array{url: ?string, requestId: ?string, extra: array<string, mixed>}
+     * @return array{
+     *   url: ?string,
+     *   requestId: ?string,
+     *   tags: array<string, string>,
+     *   extra: array<string, mixed>
+     * }
      */
     public static function collect(): array
     {
@@ -27,6 +32,11 @@ final class RuntimeContext
                 break;
             }
         }
+
+        $tags = [
+            'cli' => PHP_SAPI === 'cli' ? 'true' : 'false',
+            'php.version' => PHP_VERSION,
+        ];
 
         $extra = [
             'php_version' => PHP_VERSION,
@@ -47,6 +57,7 @@ final class RuntimeContext
         return [
             'url' => $url,
             'requestId' => $requestId,
+            'tags' => $tags,
             'extra' => array_filter($extra, static fn ($v) => $v !== null),
         ];
     }

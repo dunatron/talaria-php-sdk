@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Talaria\SilverStripe;
 
 use SilverStripe\Core\Injector\Factory;
+use Talaria\Config as SdkConfig;
 use Talaria\TalariaClient;
 use Talaria\Transport\NullTransport;
 
@@ -50,14 +51,23 @@ final class InjectorFactory implements Factory
 
         $options['tags'] = array_merge(
             is_array($options['tags'] ?? null) ? $options['tags'] : [],
-            ['runtime' => 'silverstripe'],
+            [
+                'platform' => 'php',
+                'runtime' => 'silverstripe',
+            ],
         );
 
-        if (defined('SILVERSTRIPE_VERSION') && is_string(SILVERSTRIPE_VERSION)) {
-            $options['tags']['silverstripe_version'] = SILVERSTRIPE_VERSION;
+        $runtimeVersion = FrameworkVersion::resolve();
+        if ($runtimeVersion !== null) {
+            $options['tags']['runtime_version'] = $runtimeVersion;
         }
 
+        $options['tags'] = SdkConfig::normalizeTags($options['tags']);
+
         self::$client = new TalariaClient($options);
+        self::$client->addProcessor(static function (array $bag): array {
+            return ['tags' => RequestTags::collect()];
+        });
 
         return self::$client;
     }

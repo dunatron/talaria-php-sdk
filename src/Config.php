@@ -22,6 +22,9 @@ final class Config
     /** @var array<string, string> */
     public readonly array $tags;
     public readonly float $httpTimeoutSeconds;
+    public readonly SeverityLevel $minLevel;
+    /** @var (callable(array<string, mixed>, array<string, mixed>): (?array<string, mixed>))|null */
+    public readonly mixed $beforeSend;
 
     /**
      * @param array{
@@ -37,6 +40,8 @@ final class Config
      *   userId?: string|null,
      *   tags?: array<string, string>,
      *   httpTimeoutSeconds?: float|int,
+     *   minLevel?: string|SeverityLevel,
+     *   beforeSend?: callable|null,
      * } $options
      */
     public function __construct(array $options)
@@ -74,6 +79,17 @@ final class Config
             : null;
         $this->tags = self::normalizeTags($options['tags'] ?? []);
         $this->httpTimeoutSeconds = max(0.5, (float) ($options['httpTimeoutSeconds'] ?? 3.0));
+
+        $minLevelRaw = $options['minLevel'] ?? SeverityLevel::Debug;
+        $this->minLevel = SeverityLevel::tryFromMixed(
+            $minLevelRaw instanceof SeverityLevel ? $minLevelRaw : (string) $minLevelRaw,
+        ) ?? SeverityLevel::Debug;
+
+        $beforeSend = $options['beforeSend'] ?? null;
+        if ($beforeSend !== null && !is_callable($beforeSend)) {
+            throw new \InvalidArgumentException('Talaria beforeSend must be callable or null.');
+        }
+        $this->beforeSend = $beforeSend;
     }
 
     public function shouldSample(): bool

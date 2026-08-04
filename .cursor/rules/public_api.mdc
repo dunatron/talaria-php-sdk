@@ -6,17 +6,22 @@ globs:
 
 # Public API
 
-## Facade (JS parity)
+## Facade (browser parity)
 
 ```php
 Talaria::init([...]);
+Talaria::logger(['tags' => [...], 'minLevel' => 'error']);
+Talaria::withTags([...]);
+Talaria::debug/info/warning/warn/error/fatal($message, $context);
+Talaria::log($level, $message, $context);
 Talaria::captureException($e, $context);
 Talaria::captureMessage($message, $level, $context);
+Talaria::getMinLevel(); Talaria::setMinLevel($level); Talaria::isLevelEnabled($level);
 Talaria::flush();
 Talaria::close();
 ```
 
-Also expose `Talaria\TalariaClient` for DI and `Talaria\Logger` (PSR-3).
+Also expose `Talaria\TalariaClient` for DI and `Talaria\Logger` (PSR-3 + scoped helpers).
 `Talaria\Client` remains a deprecated class alias of `TalariaClient`.
 
 `Talaria\Logger::log()` must keep **untyped** `$level` / `$message` parameters so the class
@@ -27,7 +32,9 @@ PHPDoc; cast with `(string) $message` at runtime.
 ## Init options
 
 - Required: `dsn` or `baseUrl`, `apiKey`, `environment`
-- Optional: `release`, `sampleRate`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`
+- Optional: `release`, `sampleRate`, `minLevel` (default `debug`), `beforeSend`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`, `httpTimeoutSeconds`
+- `TalariaClient::addProcessor()` for per-request tag/extra enrichment (prefer over `setTags` on long-lived singletons)
+- Tag merge order (later wins): automatic `RuntimeContext` tags → init/global → processors → logger scope → per-call context
 
 ## Capture rules
 
@@ -35,5 +42,6 @@ PHPDoc; cast with `(string) $message` at runtime.
 - Derive `eventType` from level
 - Context bag: `tags`, `extra`, `userId`, `title`, optional `mechanism` (`type` / `handled` / `synthetic`)
 - `captureException` builds first-class `exception.values[]` (frames oldest→newest, `functionName`); `extra` is app metadata only
-- Sampling happens before enqueue; sampled-out is success/no-op
+- Gates: `minLevel` → `sampleRate` → `beforeSend`; filtered captures are quiet no-ops
+- Scoped loggers can only raise the effective minLevel floor
 - Capture enqueues only — network I/O happens on queue drain
