@@ -23,8 +23,18 @@ final class TalariaClient
     private bool $closed = false;
     private ?ErrorIntegration $errorIntegration = null;
 
-    /** Mutable floor; initialized from config. */
+    /** Mutable default/root floor; initialized from config. */
     private SeverityLevel $minLevel;
+
+    /** When true, scoped loggers cannot go below {@see $minLevel}. */
+    private bool $enforceDefaultLevel;
+
+    /**
+     * Named logger presets from init.
+     *
+     * @var array<string, array{minLevel?: string|SeverityLevel, tags?: array<string, string>}>
+     */
+    private array $loggers;
 
     /** @var (callable(array<string, mixed>, array<string, mixed>): (?array<string, mixed>))|null */
     private $beforeSend;
@@ -58,6 +68,8 @@ final class TalariaClient
         $this->globalTags = $this->config->tags;
         $this->globalUserId = $this->config->userId;
         $this->minLevel = $this->config->minLevel;
+        $this->enforceDefaultLevel = $this->config->enforceDefaultLevel;
+        $this->loggers = $this->config->loggers;
         $this->beforeSend = $this->config->beforeSend;
 
         $transport ??= new ServerpodHttpTransport(
@@ -97,6 +109,16 @@ final class TalariaClient
         $this->minLevel = SeverityLevel::tryFromMixed($level) ?? $this->minLevel;
     }
 
+    public function isEnforceDefaultLevel(): bool
+    {
+        return $this->enforceDefaultLevel;
+    }
+
+    public function setEnforceDefaultLevel(bool $enforce): void
+    {
+        $this->enforceDefaultLevel = $enforce;
+    }
+
     public function isLevelEnabled(string|SeverityLevel $level): bool
     {
         $severity = SeverityLevel::tryFromMixed($level) ?? SeverityLevel::Info;
@@ -105,11 +127,49 @@ final class TalariaClient
     }
 
     /**
-     * @param array{tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
+     * Create a scoped logger. Pass a preset name string, or options
+     * (`tags`, `minLevel`, optional `name` to merge a named preset).
+     *
+     * @param string|array{name?: string, tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
      */
-    public function logger(array $options = []): Logger
+    public function logger(string|array $options = []): Logger
     {
-        return new Logger($this, $options);
+        return new Logger($this, $this->resolveLoggerOptions($options));
+    }
+
+    /**
+     * @param string|array{name?: string, tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
+     * @return array{tags?: array<string, string>, minLevel?: string|SeverityLevel|null}
+     */
+    public function resolveLoggerOptions(string|array $options = []): array
+    {
+        if (is_string($options)) {
+            $preset = $this->loggers[$options] ?? [];
+
+            return [
+                'tags' => $preset['tags'] ?? [],
+                'minLevel' => $preset['minLevel'] ?? null,
+            ];
+        }
+
+        $name = isset($options['name']) && is_string($options['name']) ? $options['name'] : null;
+        $preset = $name !== null ? ($this->loggers[$name] ?? []) : [];
+
+        $tags = array_merge(
+            Config::normalizeTags(is_array($preset['tags'] ?? null) ? $preset['tags'] : []),
+            Config::normalizeTags(is_array($options['tags'] ?? null) ? $options['tags'] : []),
+        );
+
+        $minLevel = array_key_exists('minLevel', $options)
+            ? $options['minLevel']
+            : ($preset['minLevel'] ?? null);
+
+        $resolved = ['tags' => $tags];
+        if ($minLevel !== null) {
+            $resolved['minLevel'] = $minLevel;
+        }
+
+        return $resolved;
     }
 
     /**
@@ -167,10 +227,92 @@ final class TalariaClient
      */
     public function captureException(\Throwable $exception, array $context = []): void
     {
+        $this->captureExceptionInternal($exception, $context, respectMinLevel: true);
+    }
+
+    /**
+     * Logger-originated exception capture. Applies client {@see $minLevel} only when
+     * {@see $enforceDefaultLevel} is true (scoped logger already gated on effective level).
+     *
+     * @param array{
+     *   tags?: array<string, mixed>,
+     *   extra?: array<string, mixed>,
+     *   userId?: string|null,
+     *   title?: string|null,
+     *   mechanism?: array{type?: string, handled?: bool, synthetic?: bool},
+     * } $context
+     *
+     * @internal
+     */
+    public function captureExceptionFromLogger(\Throwable $exception, array $context = []): void
+    {
+        $this->captureExceptionInternal(
+            $exception,
+            $context,
+            respectMinLevel: $this->enforceDefaultLevel,
+        );
+    }
+
+    /**
+     * @param array{
+     *   tags?: array<string, mixed>,
+     *   extra?: array<string, mixed>,
+     *   userId?: string|null,
+     *   title?: string|null,
+     * } $context
+     */
+    public function captureMessage(
+        string $message,
+        string|SeverityLevel $level = SeverityLevel::Info,
+        array $context = [],
+    ): void {
+        $this->captureMessageInternal($message, $level, $context, respectMinLevel: true);
+    }
+
+    /**
+     * Logger-originated message capture. Applies client {@see $minLevel} only when
+     * {@see $enforceDefaultLevel} is true (scoped logger already gated on effective level).
+     *
+     * @param array{
+     *   tags?: array<string, mixed>,
+     *   extra?: array<string, mixed>,
+     *   userId?: string|null,
+     *   title?: string|null,
+     * } $context
+     *
+     * @internal
+     */
+    public function captureMessageFromLogger(
+        string $message,
+        string|SeverityLevel $level = SeverityLevel::Info,
+        array $context = [],
+    ): void {
+        $this->captureMessageInternal(
+            $message,
+            $level,
+            $context,
+            respectMinLevel: $this->enforceDefaultLevel,
+        );
+    }
+
+    /**
+     * @param array{
+     *   tags?: array<string, mixed>,
+     *   extra?: array<string, mixed>,
+     *   userId?: string|null,
+     *   title?: string|null,
+     *   mechanism?: array{type?: string, handled?: bool, synthetic?: bool},
+     * } $context
+     */
+    private function captureExceptionInternal(
+        \Throwable $exception,
+        array $context,
+        bool $respectMinLevel,
+    ): void {
         if ($this->closed) {
             return;
         }
-        if (!SeverityLevel::Error->atLeast($this->minLevel)) {
+        if ($respectMinLevel && !SeverityLevel::Error->atLeast($this->minLevel)) {
             return;
         }
         if (!$this->config->shouldSample()) {
@@ -211,17 +353,18 @@ final class TalariaClient
      *   title?: string|null,
      * } $context
      */
-    public function captureMessage(
+    private function captureMessageInternal(
         string $message,
-        string|SeverityLevel $level = SeverityLevel::Info,
-        array $context = [],
+        string|SeverityLevel $level,
+        array $context,
+        bool $respectMinLevel,
     ): void {
         if ($this->closed) {
             return;
         }
 
         $severity = SeverityLevel::tryFromMixed($level) ?? SeverityLevel::Info;
-        if (!$severity->atLeast($this->minLevel)) {
+        if ($respectMinLevel && !$severity->atLeast($this->minLevel)) {
             return;
         }
         if (!$this->config->shouldSample()) {

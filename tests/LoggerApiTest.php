@@ -97,7 +97,7 @@ final class LoggerApiTest extends TestCase
         self::assertSame(['sent'], array_map(static fn ($e) => $e->message, $transport->allEvents()));
     }
 
-    public function testScopedChildCanOnlyRaiseMinLevelFloor(): void
+    public function testScopedChildInheritsAndCanOverrideMinLevel(): void
     {
         $transport = new FakeTransport();
         $client = $this->makeClient($transport, ['minLevel' => 'warning']);
@@ -111,19 +111,93 @@ final class LoggerApiTest extends TestCase
         self::assertSame(SeverityLevel::Error, $raised->getMinLevel());
         self::assertFalse($raised->isLevelEnabled('warning'));
 
+        // Assign replaces parent — child may lower after a raise.
         $weakened = $raised->child(['minLevel' => 'debug']);
-        self::assertSame(SeverityLevel::Error, $weakened->getMinLevel());
+        self::assertSame(SeverityLevel::Debug, $weakened->getMinLevel());
 
         $logger->info('nope');
         $logger->warning('warn-ok');
         $raised->warning('nope2');
         $raised->error('err-ok', ['tags' => ['component' => 'x']]);
+        $weakened->info('info-from-weakened');
         $client->flush();
 
         $events = $transport->allEvents();
-        self::assertSame(['warn-ok', 'err-ok'], array_map(static fn ($e) => $e->message, $events));
+        self::assertSame(
+            ['warn-ok', 'err-ok', 'info-from-weakened'],
+            array_map(static fn ($e) => $e->message, $events),
+        );
         self::assertSame('blog', $events[1]->tags['feature'] ?? null);
         self::assertSame('x', $events[1]->tags['component'] ?? null);
+    }
+
+    public function testScopedLoggerCanLowerBelowClientDefault(): void
+    {
+        $transport = new FakeTransport();
+        $client = $this->makeClient($transport, [
+            'minLevel' => 'warning',
+            'enforceDefaultLevel' => false,
+        ]);
+
+        $verbose = $client->logger(['minLevel' => 'info', 'tags' => ['area' => 'businessDirectory']]);
+        self::assertSame(SeverityLevel::Info, $verbose->getMinLevel());
+        self::assertTrue($verbose->isLevelEnabled('info'));
+
+        $verbose->info('bd-info');
+        $client->info('direct-dropped');
+        $client->flush();
+
+        $messages = array_map(static fn ($e) => $e->message, $transport->allEvents());
+        self::assertSame(['bd-info'], $messages);
+        self::assertSame('businessDirectory', $transport->allEvents()[0]->tags['area'] ?? null);
+    }
+
+    public function testEnforceDefaultLevelRestoresHardFloor(): void
+    {
+        $transport = new FakeTransport();
+        $client = $this->makeClient($transport, [
+            'minLevel' => 'warning',
+            'enforceDefaultLevel' => true,
+        ]);
+
+        $verbose = $client->logger(['minLevel' => 'info']);
+        self::assertSame(SeverityLevel::Warning, $verbose->getMinLevel());
+        self::assertFalse($verbose->isLevelEnabled('info'));
+
+        $verbose->info('dropped');
+        $verbose->warning('kept');
+        $client->flush();
+
+        self::assertSame(['kept'], array_map(static fn ($e) => $e->message, $transport->allEvents()));
+    }
+
+    public function testNamedLoggerPresets(): void
+    {
+        $transport = new FakeTransport();
+        $client = $this->makeClient($transport, [
+            'minLevel' => 'warning',
+            'loggers' => [
+                'businessDirectory' => [
+                    'minLevel' => 'info',
+                    'tags' => ['area' => 'businessDirectory'],
+                ],
+            ],
+        ]);
+
+        $byName = $client->logger('businessDirectory');
+        self::assertSame(SeverityLevel::Info, $byName->getMinLevel());
+
+        $merged = $client->logger([
+            'name' => 'businessDirectory',
+            'tags' => ['request' => 'x'],
+        ]);
+        $merged->info('named-info');
+        $client->flush();
+
+        $event = $transport->allEvents()[0];
+        self::assertSame('named-info', $event->message);
+        self::assertSame('businessDirectory', $event->tags['area'] ?? null);
+        self::assertSame('x', $event->tags['request'] ?? null);
     }
 
     public function testSetMinLevelUpdatesGlobalFloor(): void

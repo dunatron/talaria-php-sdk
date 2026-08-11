@@ -15,6 +15,12 @@ use Psr\Log\LogLevel;
  * 2.x, and 3.x. Older interfaces declare `log($level, $message, …)` with no
  * `$message` type; adding `\Stringable|string` makes the method incompatible
  * and fatals on install. Document the PSR-3 contract in PHPDoc; cast at runtime.
+ *
+ * Level inheritance (Logback / MEL style):
+ * - Unset scope → client {@see TalariaClient::getMinLevel()} (default/root)
+ * - Explicit scope `minLevel` replaces the default (may be lower or higher)
+ * - When client `enforceDefaultLevel` is true, effective level is
+ *   max(client.minLevel, assigned) — legacy hard floor
  */
 final class Logger extends AbstractLogger
 {
@@ -24,7 +30,7 @@ final class Logger extends AbstractLogger
     private ?SeverityLevel $scopeMinLevel;
 
     /**
-     * @param array{tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
+     * @param array{tags?: array<string, string>, minLevel?: string|SeverityLevel|null} $options
      */
     public function __construct(
         private readonly TalariaClient $client,
@@ -60,7 +66,7 @@ final class Logger extends AbstractLogger
 
         $exception = $context['exception'] ?? null;
         if ($exception instanceof \Throwable) {
-            $this->client->captureException($exception, [
+            $this->client->captureExceptionFromLogger($exception, [
                 'extra' => $merged['extra'],
                 'title' => $merged['title'],
                 'tags' => $merged['tags'],
@@ -70,7 +76,7 @@ final class Logger extends AbstractLogger
             return;
         }
 
-        $this->client->captureMessage($interpolated, $severity, [
+        $this->client->captureMessageFromLogger($interpolated, $severity, [
             'extra' => $merged['extra'],
             'title' => $merged['title'],
             'tags' => $merged['tags'],
@@ -106,7 +112,7 @@ final class Logger extends AbstractLogger
             return;
         }
 
-        $this->client->captureMessage($message, $severity, $this->mergeContext($context));
+        $this->client->captureMessageFromLogger($message, $severity, $this->mergeContext($context));
     }
 
     /**
@@ -124,7 +130,7 @@ final class Logger extends AbstractLogger
             return;
         }
 
-        $this->client->captureException($exception, $this->mergeContext($context));
+        $this->client->captureExceptionFromLogger($exception, $this->mergeContext($context));
     }
 
     /**
@@ -138,6 +144,9 @@ final class Logger extends AbstractLogger
         ]);
     }
 
+    /**
+     * Assign a scope minimum level (replaces parent assignment; may raise or lower).
+     */
     public function withMinLevel(string|SeverityLevel $minLevel): self
     {
         $next = SeverityLevel::tryFromMixed($minLevel);
@@ -147,9 +156,7 @@ final class Logger extends AbstractLogger
 
         return new self($this->client, [
             'tags' => $this->scopeTags,
-            'minLevel' => $this->scopeMinLevel !== null
-                ? SeverityLevel::max($this->scopeMinLevel, $next)
-                : $next,
+            'minLevel' => $next,
         ]);
     }
 
@@ -206,11 +213,13 @@ final class Logger extends AbstractLogger
 
     private function effectiveMinLevel(): SeverityLevel
     {
-        $global = $this->client->getMinLevel();
+        $assigned = $this->scopeMinLevel ?? $this->client->getMinLevel();
 
-        return $this->scopeMinLevel !== null
-            ? SeverityLevel::max($global, $this->scopeMinLevel)
-            : $global;
+        if ($this->client->isEnforceDefaultLevel()) {
+            return SeverityLevel::max($this->client->getMinLevel(), $assigned);
+        }
+
+        return $assigned;
     }
 
     /**

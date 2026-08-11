@@ -86,16 +86,22 @@ Low-level `captureMessage($message, $level, $context)` remains supported.
 
 Gates run in order. Filtered calls are quiet no-ops (no throw).
 
-1. **`minLevel`** (default `'debug'`) — drop below this severity. Applies to messages, `captureException` (as `'error'`), and default error integrations.
+1. **`minLevel`** (default `'debug'`) — **default/root** severity. Direct client captures and unset scopes use this. Scoped loggers may override below it unless `enforceDefaultLevel` is true.
 2. **`sampleRate`** (default `1`) — fraction of eligible events to enqueue.
 3. **`beforeSend`** — return `null` to drop, or a mutated event array. Not called when earlier gates already dropped the capture.
 
-Scoped loggers can only **raise** the floor:
+Scoped loggers **inherit** the client default and can assign a higher or lower floor (Logback-style). Full rules: [docs/logging-levels.md](docs/logging-levels.md).
 
 ```php
+// warning globally, info for one area
+Talaria::init([/* … */, 'minLevel' => 'warning', 'enforceDefaultLevel' => false]);
+
+$directory = Talaria::logger(['minLevel' => 'info', 'tags' => ['area' => 'businessDirectory']]);
+$directory->info('Listing loaded'); // sent
+
 $payments = $logger->child([
     'tags' => ['component' => 'payments'],
-    'minLevel' => 'error', // cannot weaken a stricter global minLevel
+    'minLevel' => 'error', // quieter than default
 ]);
 
 if ($logger->isLevelEnabled('info')) {
@@ -240,8 +246,10 @@ Call `Talaria::flush()` before long-running CLI exit if you need guarantees beyo
 | `release` | — | Optional release string on every event |
 | `userId` | — | Optional app user id |
 | `tags` | `[]` | Tags merged into every event |
-| `minLevel` | `'debug'` | Drop captures below this severity; use `'warning'` in production |
-| `sampleRate` | `1.0` | Fraction of eligible events to enqueue (after `minLevel`) |
+| `minLevel` | `'debug'` | Default/root severity; use `'warning'` in production |
+| `enforceDefaultLevel` | `false` | When true, scoped loggers cannot go below `minLevel` |
+| `loggers` | `[]` | Named presets for `Talaria::logger('name')` |
+| `sampleRate` | `1.0` | Fraction of eligible events to enqueue (after level gate) |
 | `beforeSend` | — | `fn (array $event, array $hint): ?array` — mutate or drop after gates |
 | `maxBatchSize` | `50` | Flush when buffer reaches N events |
 | `flushIntervalMs` | `2000` | Flush when oldest buffered event is this old |
@@ -253,14 +261,15 @@ Call `Talaria::flush()` before long-running CLI exit if you need guarantees beyo
 | API | Description |
 | --- | --- |
 | `Talaria::init($options)` | Configure singleton client |
-| `Talaria::logger($options?)` | Scoped PSR-3 + Talaria logger (`tags`, `minLevel`) |
+| `Talaria::logger($name\|$options?)` | Scoped PSR-3 + Talaria logger (`tags`, `minLevel`, named presets) |
 | `Talaria::withTags($tags)` | Shorthand for `logger(['tags' => $tags])` |
 | `Talaria::debug/info/warning/warn/error/fatal` | Level helpers |
 | `Talaria::log($level, $message, $context?)` | Generic level helper |
 | `Talaria::captureException($e, $context?)` | Ingest error |
 | `Talaria::captureMessage($message, $level?, $context?)` | Ingest message |
-| `Talaria::getMinLevel()` / `setMinLevel($level)` | Read/update global floor |
-| `Talaria::isLevelEnabled($level)` | Whether a level would pass the global floor |
+| `Talaria::getMinLevel()` / `setMinLevel($level)` | Read/update default/root level |
+| `Talaria::isEnforceDefaultLevel()` / `setEnforceDefaultLevel($bool)` | Hard-floor toggle |
+| `Talaria::isLevelEnabled($level)` | Whether a level would pass the root floor |
 | `Talaria::flush()` / `close()` | Drain queue / shut down |
 
 Scoped loggers also expose `child`, `withMinLevel`, `withTags`, `isLevelEnabled`, `getMinLevel`, and `capture*`.
@@ -272,7 +281,7 @@ Scoped loggers also expose `child`, `withMinLevel`, `withTags`, `isLevelEnabled`
 | Symptom | What to check |
 | --- | --- |
 | 401 / 403 | Client key belongs to the project |
-| `info` never appears | `minLevel` is often `'warning'` in production (and on Silverstripe by default) |
+| `info` never appears | Root `minLevel` is often `'warning'` — use a scoped/named logger with `minLevel: 'info'`, or lower the root |
 | Exceptions missing after `setMinLevel('fatal')` | `captureException` counts as `'error'` |
 | Nothing after deploy | Confirm `environment` filter in the dashboard; call `flush` in CLI scripts |
 

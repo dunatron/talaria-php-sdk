@@ -33,11 +33,21 @@ final class Talaria
     }
 
     /**
-     * @param array{tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
+     * @param string|array{name?: string, tags?: array<string, string>, minLevel?: string|SeverityLevel} $options
      */
-    public static function logger(array $options = []): Logger
+    public static function logger(string|array $options = []): Logger
     {
         return self::requireClient()->logger($options);
+    }
+
+    public static function isEnforceDefaultLevel(): bool
+    {
+        return self::requireClient()->isEnforceDefaultLevel();
+    }
+
+    public static function setEnforceDefaultLevel(bool $enforce): void
+    {
+        self::requireClient()->setEnforceDefaultLevel($enforce);
     }
 
     /**

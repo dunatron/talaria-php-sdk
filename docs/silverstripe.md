@@ -59,6 +59,13 @@ After:
 ---
 Talaria\SilverStripe\Config:
   minLevel: warning
+  enforceDefaultLevel: false
+  # Optional Approach B presets:
+  # loggers:
+  #   businessDirectory:
+  #     minLevel: info
+  #     tags:
+  #       area: businessDirectory
   service: 'my-site'
   tags:
     team: 'platform'
@@ -71,7 +78,7 @@ Talaria\SilverStripe\Config:
   browserReplaysOnErrorSampleRate: 1.0
 ```
 
-YAML `minLevel` (default **`warning`**) applies to **both** the Monolog handler and the shared `TalariaClient`. So `info` / `debug` from either approach are filtered unless you lower the floor.
+YAML `minLevel` (default **`warning`**) is the **global default/root**: the Monolog handler threshold and the shared `TalariaClient` default. Monolog stays at that global default only. Scoped `Talaria\Logger` overrides (and named `loggers`) may be more verbose unless `enforceDefaultLevel: true`. See [logging-levels.md](logging-levels.md). Browser inject receives the same `minLevel` / `enforceDefaultLevel` / `loggers`.
 
 Flush again after YAML changes: `vendor/bin/sake dev/build flush=1`.
 
@@ -250,14 +257,21 @@ Do not put `environment` / `release` in tags (use env / YAML). Do not put user i
 ```php
 $analytics = $logger->child([
     'tags' => ['component' => 'analytics'],
-    'minLevel' => 'error', // can only raise the global/YAML floor
+    'minLevel' => 'error', // quieter than YAML default warning
 ]);
 
-$analytics->info('page_view'); // no-op when floor is error / warning
+$analytics->info('page_view'); // no-op when floor is error
 $analytics->captureException($e);
+
+// More verbose than default (enforceDefaultLevel must be false — the default):
+$directory = Talaria::logger([
+    'minLevel' => 'info',
+    'tags' => ['area' => 'businessDirectory'],
+]);
+// or: Talaria::logger('businessDirectory') with YAML loggers.businessDirectory
 ```
 
-Scoped `minLevel` cannot weaken a stricter global floor (YAML default `warning`).
+Scoped `minLevel` may raise or lower relative to the YAML default unless `enforceDefaultLevel: true`.
 
 #### Guard expensive context
 
@@ -352,7 +366,7 @@ Details: [`client/README.md`](../client/README.md). If public pages do not use `
 
 | Symptom | What to check |
 | --- | --- |
-| `info` / `debug` never appear | YAML / client `minLevel` defaults to `warning` |
+| `info` / `debug` never appear | YAML default is `warning` — use Approach B scoped/named logger, or lower `minLevel` |
 | “init() called more than once” | Do not call `Talaria::init()` when using the Injector `TalariaClient` |
 | 401 / 403 | `TALARIA_API_KEY` belongs to the project |
 | No events in the dashboard | Flush config; confirm `TALARIA_ENVIRONMENT` matches the dashboard filter; call flush in long CLI scripts |

@@ -56,6 +56,7 @@ class Config
             'flushIntervalMs' => (int) ($cfg->get('flushIntervalMs') ?? 2000),
             'sampleRate' => (float) ($cfg->get('sampleRate') ?? 1.0),
             'minLevel' => self::minLevel(),
+            'enforceDefaultLevel' => self::enforceDefaultLevel(),
             'defaultIntegrations' => true,
         ];
 
@@ -73,6 +74,11 @@ class Config
         }
         if ($tags !== []) {
             $options['tags'] = SdkConfig::normalizeTags($tags);
+        }
+
+        $loggers = self::loggers();
+        if ($loggers !== []) {
+            $options['loggers'] = $loggers;
         }
 
         return $options;
@@ -131,6 +137,8 @@ class Config
             'dsn' => $dsn,
             'apiKey' => $apiKey,
             'environment' => $environment,
+            'minLevel' => self::minLevel(),
+            'enforceDefaultLevel' => self::enforceDefaultLevel(),
             'replaysSessionSampleRate' => (float) (static::config()->get('browserReplaysSessionSampleRate') ?? 0),
             'replaysOnErrorSampleRate' => (float) (static::config()->get('browserReplaysOnErrorSampleRate') ?? 0),
             'tags' => SdkConfig::normalizeTags($tags),
@@ -138,6 +146,11 @@ class Config
             'captureFailedRequests' => self::resolveCaptureFailedRequests(),
             'failedRequestStatusCodes' => self::resolveFailedRequestStatusCodes($runtimeTag),
         ];
+
+        $loggers = self::loggers();
+        if ($loggers !== []) {
+            $browser['loggers'] = $loggers;
+        }
 
         if (!empty($options['release']) && is_string($options['release'])) {
             $browser['release'] = $options['release'];
@@ -249,6 +262,29 @@ class Config
         $level = static::config()->get('minLevel') ?? 'warning';
 
         return is_string($level) && $level !== '' ? $level : 'warning';
+    }
+
+    /**
+     * When true, scoped Talaria loggers cannot go below {@see minLevel()}.
+     * Default false — named/scoped overrides may be more verbose than the default.
+     */
+    public static function enforceDefaultLevel(): bool
+    {
+        $value = static::config()->get('enforceDefaultLevel');
+
+        return $value === null ? false : (bool) $value;
+    }
+
+    /**
+     * Named logger presets for Approach B (`Talaria::logger('name')`).
+     *
+     * @return array<string, array{minLevel?: string, tags?: array<string, string>}>
+     */
+    public static function loggers(): array
+    {
+        $raw = static::config()->get('loggers');
+
+        return SdkConfig::normalizeLoggers(is_array($raw) ? $raw : []);
     }
 
     private static function resolveMemberUserId(): ?string

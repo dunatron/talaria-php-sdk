@@ -10,13 +10,14 @@ globs:
 
 ```php
 Talaria::init([...]);
-Talaria::logger(['tags' => [...], 'minLevel' => 'error']);
+Talaria::logger('name' | ['name' => …, 'tags' => [...], 'minLevel' => 'info']);
 Talaria::withTags([...]);
 Talaria::debug/info/warning/warn/error/fatal($message, $context);
 Talaria::log($level, $message, $context);
 Talaria::captureException($e, $context);
 Talaria::captureMessage($message, $level, $context);
 Talaria::getMinLevel(); Talaria::setMinLevel($level); Talaria::isLevelEnabled($level);
+Talaria::isEnforceDefaultLevel(); Talaria::setEnforceDefaultLevel($bool);
 Talaria::flush();
 Talaria::close();
 ```
@@ -32,7 +33,7 @@ PHPDoc; cast with `(string) $message` at runtime.
 ## Init options
 
 - Required: `dsn` or `baseUrl`, `apiKey`, `environment`
-- Optional: `release`, `sampleRate`, `minLevel` (default `debug`), `beforeSend`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`, `httpTimeoutSeconds`
+- Optional: `release`, `sampleRate`, `minLevel` (default `debug` — default/root level), `enforceDefaultLevel` (default `false`), `loggers` (named presets), `beforeSend`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`, `httpTimeoutSeconds`
 - `TalariaClient::addProcessor()` for per-request tag/extra enrichment (prefer over `setTags` on long-lived singletons)
 - Tag merge order (later wins): automatic `RuntimeContext` tags → init/global → processors → logger scope → per-call context
 
@@ -42,6 +43,8 @@ PHPDoc; cast with `(string) $message` at runtime.
 - Derive `eventType` from level
 - Context bag: `tags`, `extra`, `userId`, `title`, optional `mechanism` (`type` / `handled` / `synthetic`)
 - `captureException` builds first-class `exception.values[]` (frames oldest→newest, `functionName`); `extra` is app metadata only
-- Gates: `minLevel` → `sampleRate` → `beforeSend`; filtered captures are quiet no-ops
-- Scoped loggers can only raise the effective minLevel floor
+- Gates: effective level → `sampleRate` → `beforeSend`; filtered captures are quiet no-ops
+- Scoped loggers inherit client `minLevel` as default; assigned `minLevel` may raise or lower unless `enforceDefaultLevel` is true
+- Direct client captures always respect client `minLevel`; logger path applies client floor only when enforcing
 - Capture enqueues only — network I/O happens on queue drain
+- See `docs/logging-levels.md` for hierarchy, enforcement, and migration

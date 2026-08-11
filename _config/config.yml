@@ -26,12 +26,21 @@ Talaria\SilverStripe\Config:
   environment: '`TALARIA_ENVIRONMENT`'
   release: '`TALARIA_RELEASE`'
   minLevel: warning
+  # When true, scoped Talaria\Logger cannot go below minLevel (legacy hard floor).
+  # Default false — named/scoped overrides may be more verbose than the default.
+  enforceDefaultLevel: false
   maxBatchSize: 50
   flushIntervalMs: 2000
   sampleRate: 1.0
   enableBrowserCms: true
   enableBrowserFrontend: true
   browserSdkVersion: '0.1.21'
+  # Optional named logger presets for Approach B (Talaria::logger('name'))
+  # loggers:
+  #   businessDirectory:
+  #     minLevel: info
+  #     tags:
+  #       area: businessDirectory
   # Optional filterable app name (reserved tag key `service`)
   # service: 'my-site'
   # Optional PHP + browser init tags (string→string, low cardinality)

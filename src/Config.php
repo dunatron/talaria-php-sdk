@@ -22,7 +22,22 @@ final class Config
     /** @var array<string, string> */
     public readonly array $tags;
     public readonly float $httpTimeoutSeconds;
+    /**
+     * Default / root minimum severity for unset scopes and direct client captures.
+     * When {@see $enforceDefaultLevel} is false, scoped loggers may override below this.
+     */
     public readonly SeverityLevel $minLevel;
+    /**
+     * When true, scoped loggers cannot log below {@see $minLevel} (legacy hard floor).
+     * Default false — Logback/MEL-style overrides allowed.
+     */
+    public readonly bool $enforceDefaultLevel;
+    /**
+     * Named logger presets: name → { minLevel?, tags? }.
+     *
+     * @var array<string, array{minLevel?: string|SeverityLevel, tags?: array<string, string>}>
+     */
+    public readonly array $loggers;
     /** @var (callable(array<string, mixed>, array<string, mixed>): (?array<string, mixed>))|null */
     public readonly mixed $beforeSend;
 
@@ -41,6 +56,8 @@ final class Config
      *   tags?: array<string, string>,
      *   httpTimeoutSeconds?: float|int,
      *   minLevel?: string|SeverityLevel,
+     *   enforceDefaultLevel?: bool,
+     *   loggers?: array<string, array{minLevel?: string|SeverityLevel, tags?: array<string, string>}>,
      *   beforeSend?: callable|null,
      * } $options
      */
@@ -85,11 +102,44 @@ final class Config
             $minLevelRaw instanceof SeverityLevel ? $minLevelRaw : (string) $minLevelRaw,
         ) ?? SeverityLevel::Debug;
 
+        $this->enforceDefaultLevel = (bool) ($options['enforceDefaultLevel'] ?? false);
+        $this->loggers = self::normalizeLoggers($options['loggers'] ?? []);
+
         $beforeSend = $options['beforeSend'] ?? null;
         if ($beforeSend !== null && !is_callable($beforeSend)) {
             throw new \InvalidArgumentException('Talaria beforeSend must be callable or null.');
         }
         $this->beforeSend = $beforeSend;
+    }
+
+    /**
+     * @param mixed $loggers
+     * @return array<string, array{minLevel?: string|SeverityLevel, tags?: array<string, string>}>
+     */
+    public static function normalizeLoggers(mixed $loggers): array
+    {
+        if (!is_array($loggers)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($loggers as $name => $preset) {
+            if (!is_string($name) || $name === '' || !is_array($preset)) {
+                continue;
+            }
+            $entry = [];
+            if (array_key_exists('minLevel', $preset)) {
+                $entry['minLevel'] = $preset['minLevel'] instanceof SeverityLevel
+                    ? $preset['minLevel']
+                    : (string) $preset['minLevel'];
+            }
+            if (isset($preset['tags']) && is_array($preset['tags'])) {
+                $entry['tags'] = self::normalizeTags($preset['tags']);
+            }
+            $normalized[$name] = $entry;
+        }
+
+        return $normalized;
     }
 
     public function shouldSample(): bool
