@@ -2,6 +2,9 @@
 Name: talaria-tracing
 After:
   - '#talaria-logging'
+  # Framework maps MySQLDatabase → SilverStripe\ORM\Connect\MySQLDatabase.
+  # Without this After, that fragment wins and query spans never wrap.
+  - '#databaseconnectors'
 ---
 SilverStripe\Core\Injector\Injector:
   Talaria\SilverStripe\HttpMiddleware:

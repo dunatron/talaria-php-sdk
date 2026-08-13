@@ -408,6 +408,9 @@ final class TalariaClient
         if ($respectMinLevel && !$severity->atLeast($this->minLevel)) {
             return;
         }
+        if ($severity->atLeast(SeverityLevel::Error)) {
+            $this->tracer->markError($message);
+        }
         if (!$this->config->shouldSample()) {
             return;
         }
@@ -684,6 +687,9 @@ final class TalariaClient
         $spanId = $active !== null && ($active->isRecording() || $active->hasEnded()) && $active->spanId !== str_repeat('0', 16)
             ? $active->spanId
             : null;
+        if ($traceId !== null) {
+            $this->tracer->retain();
+        }
 
         $isError = $level->atLeast(SeverityLevel::Error);
         $breadcrumbs = $isError ? $this->breadcrumbs->snapshot() : null;

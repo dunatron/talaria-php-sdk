@@ -162,6 +162,11 @@ class Config
             'failedRequestStatusCodes' => self::resolveFailedRequestStatusCodes($runtimeTag),
         ];
 
+        if (self::enableTracing()) {
+            $browser['enableTracing'] = true;
+            $browser['tracesSampleRate'] = self::tracesSampleRate();
+        }
+
         $loggers = self::loggers();
         if ($loggers !== []) {
             $browser['loggers'] = $loggers;

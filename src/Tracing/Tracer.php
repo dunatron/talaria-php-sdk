@@ -29,6 +29,9 @@ final class Tracer
 
     private bool $sawError = false;
 
+    /** Keep the transaction even when head sampling would drop it (errors, attached events). */
+    private bool $forceSend = false;
+
     private int $childCount = 0;
 
     /** @var array<string, string> */
@@ -51,7 +54,7 @@ final class Tracer
      */
     public function isSampled(): bool
     {
-        return $this->sawError || $this->headSampled;
+        return $this->forceSend || $this->sawError || $this->headSampled;
     }
 
     public function currentSpan(): ?Span
@@ -90,11 +93,23 @@ final class Tracer
             return;
         }
         $this->sawError = true;
+        $this->forceSend = true;
         $current = $this->currentSpan();
         $current?->setStatus(SpanStatus::Error, $message);
         if ($this->root !== null && $this->root !== $current) {
             $this->root->setStatus(SpanStatus::Error, $message);
         }
+    }
+
+    /**
+     * Keep this transaction so a stamped event's "View trace" link resolves.
+     */
+    public function retain(): void
+    {
+        if (!$this->isEnabled()) {
+            return;
+        }
+        $this->forceSend = true;
     }
 
     /**
@@ -177,6 +192,7 @@ final class Tracer
         $this->finished = [];
         $this->headSampled = false;
         $this->sawError = false;
+        $this->forceSend = false;
         $this->childCount = 0;
         $this->requestAttributes = [];
     }
@@ -204,7 +220,7 @@ final class Tracer
     private function commitTransaction(): void
     {
         $isError = $this->sawError || ($this->root !== null && $this->root->getStatus() === SpanStatus::Error->value);
-        if (Sampling::shouldSend($this->headSampled, $isError)) {
+        if (Sampling::shouldSend($this->headSampled, $isError || $this->forceSend)) {
             $root = $this->root;
             if ($root !== null) {
                 $this->queue->enqueue($root);

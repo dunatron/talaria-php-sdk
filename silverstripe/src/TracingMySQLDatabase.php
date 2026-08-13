@@ -54,6 +54,12 @@ class TracingMySQLDatabase extends MySQLDatabase
             return $callback();
         }
 
+        $root = $client->getTracer()->rootSpan();
+        if ($root === null) {
+            // Boot / session queries before HTTPMiddleware would become their own traces.
+            return $callback();
+        }
+
         $operation = SqlSanitizer::operation($sql);
         $sanitized = SqlSanitizer::sanitize($sql);
         $span = $client->startSpan($operation, SpanKind::Client, [

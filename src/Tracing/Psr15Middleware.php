@@ -62,6 +62,7 @@ final class Psr15Middleware
             throw $e;
         } finally {
             $span->end();
+            $this->client->flush();
         }
     }
 }

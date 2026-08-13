@@ -69,6 +69,8 @@ final class HttpMiddleware implements \SilverStripe\Control\Middleware\HTTPMiddl
             throw $e;
         } finally {
             $span->end();
+            // FPM may recycle before the shutdown flush; send this request's spans now.
+            $client->flush();
         }
     }
 

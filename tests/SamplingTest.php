@@ -71,6 +71,22 @@ final class SamplingTest extends TestCase
         self::assertSame('error', $spans->allSpans()[0]->getStatus());
     }
 
+    public function testWarningEventRetainsUnsampledTransaction(): void
+    {
+        $spans = new FakeSpanTransport();
+        $client = $this->client(['enableTracing' => true, 'tracesSampleRate' => 0.0], $spans);
+
+        $root = $client->startTransaction('GET /server-error', SpanKind::Server);
+        $client->captureMessage('session_start(): headers already sent', 'warning');
+        $root->setStatus(SpanStatus::Ok);
+        $root->end();
+        $client->flush();
+
+        self::assertNotEmpty($spans->allSpans());
+        self::assertSame('GET /server-error', $spans->allSpans()[0]->name);
+        self::assertSame('ok', $spans->allSpans()[0]->getStatus());
+    }
+
     public function testSuccessfulTransactionSentWhenRateOne(): void
     {
         $spans = new FakeSpanTransport();

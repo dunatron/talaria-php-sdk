@@ -39,7 +39,8 @@
       "Talaria\\SilverStripe\\": "silverstripe/src/"
     },
     "exclude-from-classmap": [
-      "silverstripe/handlers/"
+      "silverstripe/handlers/",
+      "silverstripe/src/TracingQueuedJobService.php"
     ]
   },
   "autoload-dev": {

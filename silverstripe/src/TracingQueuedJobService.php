@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Talaria\SilverStripe;
 
 use SilverStripe\Core\Injector\Injector;
-use Symbiote\QueuedJobs\Services\QueuedJobService;
 use Talaria\TalariaClient;
 use Talaria\Tracing\SpanKind;
 use Talaria\Tracing\SpanStatus;
@@ -13,9 +12,14 @@ use Talaria\Tracing\SpanStatus;
 /**
  * PRODUCER span on enqueue, CONSUMER span on run.
  *
- * Only loaded when `symbiote/silverstripe-queuedjobs` is installed.
+ * Only defined when `symbiote/silverstripe-queuedjobs` is installed — this file
+ * is still autoloadable, so bail out before `extends` if the parent is missing.
  */
-class TracingQueuedJobService extends QueuedJobService
+if (!class_exists(\Symbiote\QueuedJobs\Services\QueuedJobService::class)) {
+    return;
+}
+
+class TracingQueuedJobService extends \Symbiote\QueuedJobs\Services\QueuedJobService
 {
     /**
      * @param mixed $job
