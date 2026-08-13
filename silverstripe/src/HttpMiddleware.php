@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Talaria\SilverStripe;
 
 use SilverStripe\Control\HTTPRequest;
-use SilverStripe\Control\Middleware\HTTPMiddleware;
 use SilverStripe\Core\Injector\Injector;
 use Talaria\TalariaClient;
 use Talaria\Tracing\SpanKind;
@@ -13,8 +12,11 @@ use Talaria\Tracing\SpanStatus;
 
 /**
  * SERVER span per HTTP request. Continues an incoming W3C `traceparent` when present.
+ *
+ * FQCN on implements: a `use …\HTTPMiddleware` import collides with this class
+ * name because PHP class names are case-insensitive.
  */
-final class HttpMiddleware implements HTTPMiddleware
+final class HttpMiddleware implements \SilverStripe\Control\Middleware\HTTPMiddleware
 {
     public function process(HTTPRequest $request, callable $delegate)
     {
