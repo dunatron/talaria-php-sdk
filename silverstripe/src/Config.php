@@ -17,6 +17,7 @@ use Talaria\Environment;
  * - TALARIA_API_KEY
  * - TALARIA_ENVIRONMENT
  * - TALARIA_RELEASE (optional)
+ * - TALARIA_COMMIT_SHA (optional)
  */
 class Config
 {
@@ -33,6 +34,7 @@ class Config
         $apiKey = self::resolveString($cfg->get('apiKey') ?? '');
         $environment = self::resolveString($cfg->get('environment') ?? '');
         $release = self::resolveString($cfg->get('release') ?? '');
+        $commitSha = self::resolveString($cfg->get('commitSha') ?? '');
         $service = self::resolveString($cfg->get('service') ?? '');
 
         if ($dsn === '') {
@@ -46,6 +48,9 @@ class Config
         }
         if ($release === '') {
             $release = self::env('TALARIA_RELEASE');
+        }
+        if ($commitSha === '') {
+            $commitSha = self::env('TALARIA_COMMIT_SHA');
         }
 
         $options = [
@@ -62,6 +67,9 @@ class Config
 
         if ($release !== '') {
             $options['release'] = $release;
+        }
+        if ($commitSha !== '') {
+            $options['commitSha'] = $commitSha;
         }
 
         $tags = [];
@@ -154,6 +162,9 @@ class Config
 
         if (!empty($options['release']) && is_string($options['release'])) {
             $browser['release'] = $options['release'];
+        }
+        if (!empty($options['commitSha']) && is_string($options['commitSha'])) {
+            $browser['commitSha'] = $options['commitSha'];
         }
 
         $userId = self::resolveMemberUserId();

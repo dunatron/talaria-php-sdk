@@ -21,6 +21,7 @@ final class Event
         public readonly ?string $title = null,
         public readonly ?string $stackTrace = null,
         public readonly ?string $release = null,
+        public readonly ?string $commitSha = null,
         public readonly ?string $userId = null,
         public readonly ?string $sessionId = null,
         public readonly ?string $requestId = null,
@@ -63,6 +64,9 @@ final class Event
         }
         if ($this->release !== null && $this->release !== '') {
             $wire['release'] = $this->release;
+        }
+        if ($this->commitSha !== null && $this->commitSha !== '') {
+            $wire['commitSha'] = $this->commitSha;
         }
         if ($this->userId !== null && $this->userId !== '') {
             $wire['userId'] = $this->userId;

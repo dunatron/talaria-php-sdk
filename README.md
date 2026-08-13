@@ -23,7 +23,8 @@ Talaria::init([
     'dsn' => 'https://api.newtalaria.com',
     'apiKey' => 'tal_live_…',
     'environment' => 'production', // staging | development also accepted
-    'release' => '1.4.2',          // deploy / git SHA — first-class field, not a tag
+    'release' => '1.4.2',          // deploy version — first-class field, not a tag
+    'commitSha' => getenv('TALARIA_COMMIT_SHA') ?: null, // optional; enables GitHub source
     'minLevel' => 'warning',       // production: drop info/debug noise
     'sampleRate' => 1.0,
     'tags' => [
@@ -210,7 +211,7 @@ Supported: **Silverstripe 4.13+ / 5 / 6** on **PHP 8.1+**.
 composer require newtalaria/logging
 ```
 
-Set `TALARIA_DSN`, `TALARIA_API_KEY`, `TALARIA_ENVIRONMENT`, and optional `TALARIA_RELEASE` / `TALARIA_BROWSER_DSN`, then:
+Set `TALARIA_DSN`, `TALARIA_API_KEY`, `TALARIA_ENVIRONMENT`, and optional `TALARIA_RELEASE` / `TALARIA_COMMIT_SHA` / `TALARIA_BROWSER_DSN`, then:
 
 ```bash
 vendor/bin/sake dev/build flush=1
@@ -244,6 +245,7 @@ Call `Talaria::flush()` before long-running CLI exit if you need guarantees beyo
 | `apiKey` | *(required)* | Project client key (`tal_live_…`) |
 | `environment` | *(required)* | `production` \| `staging` \| `development` (aliases accepted) |
 | `release` | — | Optional release string on every event |
+| `commitSha` | — | Optional git SHA for source context (`TALARIA_COMMIT_SHA`) |
 | `userId` | — | Optional app user id |
 | `tags` | `[]` | Tags merged into every event |
 | `minLevel` | `'debug'` | Default/root severity; use `'warning'` in production |

@@ -575,6 +575,7 @@ final class TalariaClient
             title: $title,
             stackTrace: $stackTrace,
             release: $this->config->release,
+            commitSha: $this->config->commitSha,
             userId: $userId,
             sessionId: $this->sessionId,
             requestId: $runtime['requestId'],

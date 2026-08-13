@@ -14,6 +14,7 @@ final class Config
     /** Normalized wire value: production | staging | development */
     public readonly string $environment;
     public readonly ?string $release;
+    public readonly ?string $commitSha;
     public readonly float $sampleRate;
     public readonly int $maxBatchSize;
     public readonly int $flushIntervalMs;
@@ -48,6 +49,7 @@ final class Config
      *   apiKey: string,
      *   environment: string|Environment,
      *   release?: string|null,
+     *   commitSha?: string|null,
      *   sampleRate?: float|int,
      *   maxBatchSize?: int,
      *   flushIntervalMs?: int,
@@ -86,6 +88,9 @@ final class Config
         $this->environment = Environment::fromMixed($options['environment'])->value;
         $this->release = isset($options['release']) && is_string($options['release']) && $options['release'] !== ''
             ? $options['release']
+            : null;
+        $this->commitSha = isset($options['commitSha']) && is_string($options['commitSha']) && $options['commitSha'] !== ''
+            ? $options['commitSha']
             : null;
         $this->sampleRate = max(0.0, min(1.0, (float) ($options['sampleRate'] ?? 1.0)));
         $this->maxBatchSize = max(1, (int) ($options['maxBatchSize'] ?? 50));

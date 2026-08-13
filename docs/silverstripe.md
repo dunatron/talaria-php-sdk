@@ -32,6 +32,7 @@ TALARIA_DSN="https://api.newtalaria.com"
 TALARIA_API_KEY="tal_live_…"
 TALARIA_ENVIRONMENT="production"
 TALARIA_RELEASE="1.2.3"
+TALARIA_COMMIT_SHA="…"   # optional; enables GitHub source context on stack frames
 
 # Optional: browser inject only when the PHP DSN is not reachable from the browser
 # (e.g. Docker-internal HTTP behind an HTTPS site).
