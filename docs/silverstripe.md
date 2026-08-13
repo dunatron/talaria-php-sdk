@@ -34,6 +34,10 @@ TALARIA_ENVIRONMENT="production"
 TALARIA_RELEASE="1.2.3"
 TALARIA_COMMIT_SHA="…"   # optional; enables GitHub source context on stack frames
 
+# Optional APM (off by default)
+# TALARIA_ENABLE_TRACING="true"
+# TALARIA_TRACES_SAMPLE_RATE="0.1"
+
 # Optional: browser inject only when the PHP DSN is not reachable from the browser
 # (e.g. Docker-internal HTTP behind an HTTPS site).
 # TALARIA_BROWSER_DSN="https://api.newtalaria.com"
@@ -72,6 +76,8 @@ Talaria\SilverStripe\Config:
     team: 'platform'
   maxBatchSize: 50
   flushIntervalMs: 2000
+  enableTracing: false
+  # tracesSampleRate: 0.1
   enableBrowserCms: true
   enableBrowserFrontend: true
   browserSdkVersion: '0.1.21'
@@ -80,6 +86,37 @@ Talaria\SilverStripe\Config:
 ```
 
 YAML `minLevel` (default **`warning`**) is the **global default/root**: the Monolog handler threshold and the shared `TalariaClient` default. Monolog stays at that global default only. Scoped `Talaria\Logger` overrides (and named `loggers`) may be more verbose unless `enforceDefaultLevel: true`. See [logging-levels.md](logging-levels.md). Browser inject receives the same `minLevel` / `enforceDefaultLevel` / `loggers`.
+
+### Tracing (APM)
+
+Tracing is **off** until `enableTracing: true` or `TALARIA_ENABLE_TRACING=true` (or `tracesSampleRate` / `TALARIA_TRACES_SAMPLE_RATE` > 0). When enabled without an explicit rate, successful transactions sample at **10%**; **error** transactions are always sent. The same project API key is used for `POST /spans/ingestBatch` (`spansWrite` is included on default app keys).
+
+With tracing on, the module registers:
+
+| Signal | Instrumentation |
+| --- | --- |
+| Incoming HTTP | `Talaria\SilverStripe\HttpMiddleware` — SERVER span per request (`http.request.method`, `http.route`, `http.response.status_code`). Continues W3C `traceparent` when present |
+| MySQL | `TracingMySQLDatabase` wraps `query` / `preparedQuery` as CLIENT spans (`db.system.name=mysql`, `db.operation.name`, sanitized `db.query.text`). Repeated identical queries are each sent (N+1 stays visible) |
+| Outbound HTTP | Injector `GuzzleHttp\Client` gets Talaria Guzzle middleware (client span + `traceparent`). The SDK’s own ingest Guzzle client is **not** wrapped |
+| Queued jobs | When `symbiote/silverstripe-queuedjobs` is installed: PRODUCER on enqueue, CONSUMER on run |
+| Redis | Not in Silverstripe core. Wrap Predis or phpredis with `Talaria\Tracing\RedisInstrumentation::wrap($redis, $client)` |
+
+Framework-agnostic PHP (no Silverstripe): `TracingPdo` / `TracingMysqli` for SQL, `Psr15Middleware` or `IncomingHttp::startTransaction()` for incoming HTTP, `Talaria::getTraceparent()` to continue a browser trace.
+
+Manual breadcrumbs and child spans:
+
+```php
+use SilverStripe\Core\Injector\Injector;
+use Talaria\TalariaClient;
+
+$client = Injector::inst()->get(TalariaClient::class);
+$client->addBreadcrumb([
+    'type' => 'default',
+    'category' => 'checkout',
+    'message' => 'coupon applied',
+    'level' => 'info',
+]);
+```
 
 Flush again after YAML changes: `vendor/bin/sake dev/build flush=1`.
 
@@ -371,6 +408,7 @@ Details: [`client/README.md`](../client/README.md). If public pages do not use `
 | “init() called more than once” | Do not call `Talaria::init()` when using the Injector `TalariaClient` |
 | 401 / 403 | `TALARIA_API_KEY` belongs to the project |
 | No events in the dashboard | Flush config; confirm `TALARIA_ENVIRONMENT` matches the dashboard filter; call flush in long CLI scripts |
+| No traces / waterfalls | Tracing is off by default — set `TALARIA_ENABLE_TRACING=true` or YAML `enableTracing: true`, then `sake dev/build flush=1`. Errors are always sampled; successful requests follow `tracesSampleRate` (default 0.1) |
 | Browser SDK missing on frontend | `enableBrowserFrontend`, `ContentController` / `FrontendExtension`, and `TALARIA_BROWSER_DSN` if needed |
 
 More: [PHP SDK README](../README.md) · [www.newtalaria.com/docs/sdk/silverstripe](https://www.newtalaria.com/docs/sdk/silverstripe)

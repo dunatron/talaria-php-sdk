@@ -29,6 +29,9 @@ Depends on core `Talaria\TalariaClient` (PHP) and the published npm package [`@n
 - Filterable auto-tags: `platform=php`, `runtime=silverstripe`, `runtime_version`, plus per-request `ajax` / `ss_env` / `host` via `RequestTags` processor (not `setTags` on the singleton)
 - Core also emits `cli` and `php.version` via `RuntimeContext`
 - Optional YAML `service` / `tags` merge into init tags
+- APM (off by default): `HTTPMiddleware` SERVER span, `TracingMySQLDatabase` CLIENT/db spans, Injector Guzzle factory, QueuedJob producer/consumer when the module exists. Enable with `enableTracing` / `TALARIA_ENABLE_TRACING`
+- Do not wrap Talaria ingest Guzzle clients; `GuzzleClientFactory` is for **app** clients only
+- No Redis wrapper — Silverstripe has no core Redis usage pattern
 
 ## Browser JS
 

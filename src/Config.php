@@ -41,6 +41,15 @@ final class Config
     public readonly array $loggers;
     /** @var (callable(array<string, mixed>, array<string, mixed>): (?array<string, mixed>))|null */
     public readonly mixed $beforeSend;
+    /**
+     * Tracing is off until this is true or {@see $tracesSampleRate} > 0.
+     */
+    public readonly bool $enableTracing;
+    /**
+     * Head-based sample rate for successful transactions. Error transactions
+     * are always kept. Default 0.1 when tracing is enabled and the option is omitted.
+     */
+    public readonly float $tracesSampleRate;
 
     /**
      * @param array{
@@ -61,6 +70,8 @@ final class Config
      *   enforceDefaultLevel?: bool,
      *   loggers?: array<string, array{minLevel?: string|SeverityLevel, tags?: array<string, string>}>,
      *   beforeSend?: callable|null,
+     *   enableTracing?: bool,
+     *   tracesSampleRate?: float|int,
      * } $options
      */
     public function __construct(array $options)
@@ -115,6 +126,15 @@ final class Config
             throw new \InvalidArgumentException('Talaria beforeSend must be callable or null.');
         }
         $this->beforeSend = $beforeSend;
+
+        $enableTracing = (bool) ($options['enableTracing'] ?? false);
+        if (array_key_exists('tracesSampleRate', $options)) {
+            $tracesSampleRate = max(0.0, min(1.0, (float) $options['tracesSampleRate']));
+        } else {
+            $tracesSampleRate = $enableTracing ? 0.1 : 0.0;
+        }
+        $this->enableTracing = $enableTracing || $tracesSampleRate > 0.0;
+        $this->tracesSampleRate = $tracesSampleRate;
     }
 
     /**

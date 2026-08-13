@@ -66,7 +66,15 @@ final class InjectorFactory implements Factory
 
         self::$client = new TalariaClient($options);
         self::$client->addProcessor(static function (array $bag): array {
-            return ['tags' => RequestTags::collect()];
+            $tags = RequestTags::collect();
+            $http = self::$client?->getTracer()->requestAttributes() ?? [];
+            foreach (['http.route', 'http.request.method'] as $key) {
+                if (isset($http[$key]) && is_string($http[$key]) && $http[$key] !== '') {
+                    $tags[$key] = $http[$key];
+                }
+            }
+
+            return ['tags' => $tags];
         });
 
         return self::$client;

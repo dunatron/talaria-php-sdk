@@ -8,7 +8,17 @@ use Talaria\Context\RuntimeContext;
 use Talaria\Exception\TransportException;
 use Talaria\Integration\ErrorIntegration;
 use Talaria\Protocol\ExceptionPayloadBuilder;
+use Talaria\Tracing\BreadcrumbBuffer;
+use Talaria\Tracing\NullSpanTransport;
+use Talaria\Tracing\Span;
+use Talaria\Tracing\SpanKind;
+use Talaria\Tracing\SpanQueue;
+use Talaria\Tracing\SpanTransport;
+use Talaria\Tracing\SpanTransportInterface;
+use Talaria\Tracing\TraceContext;
+use Talaria\Tracing\Tracer;
 use Talaria\Transport\EventQueue;
+use Talaria\Transport\NullTransport;
 use Talaria\Transport\ServerpodHttpTransport;
 use Talaria\Transport\TransportInterface;
 
@@ -19,6 +29,9 @@ final class TalariaClient
 {
     private readonly Config $config;
     private readonly EventQueue $queue;
+    private readonly SpanQueue $spanQueue;
+    private readonly Tracer $tracer;
+    private readonly BreadcrumbBuffer $breadcrumbs;
     private readonly string $sessionId;
     private bool $closed = false;
     private ?ErrorIntegration $errorIntegration = null;
@@ -62,6 +75,8 @@ final class TalariaClient
         ?TransportInterface $transport = null,
         ?EventQueue $queue = null,
         ?callable $clock = null,
+        ?SpanTransportInterface $spanTransport = null,
+        ?SpanQueue $spanQueue = null,
     ) {
         $this->config = $options instanceof Config ? $options : new Config($options);
         $this->sessionId = RuntimeContext::newSessionId();
@@ -71,6 +86,7 @@ final class TalariaClient
         $this->enforceDefaultLevel = $this->config->enforceDefaultLevel;
         $this->loggers = $this->config->loggers;
         $this->beforeSend = $this->config->beforeSend;
+        $this->breadcrumbs = new BreadcrumbBuffer();
 
         $transport ??= new ServerpodHttpTransport(
             $this->config->baseUrl,
@@ -78,15 +94,37 @@ final class TalariaClient
             $this->config->httpTimeoutSeconds,
         );
 
+        if ($spanTransport === null) {
+            $spanTransport = $transport instanceof NullTransport
+                ? new NullSpanTransport()
+                : new SpanTransport(
+                    $this->config->baseUrl,
+                    $this->config->apiKey,
+                    $this->config->httpTimeoutSeconds,
+                );
+        }
+
+        $onError = static function (TransportException $e): void {
+            error_log('[Talaria] ' . $e->getMessage());
+        };
+
         $this->queue = $queue ?? new EventQueue(
             $transport,
             $this->config->maxBatchSize,
             $this->config->flushIntervalMs,
             $clock,
-            static function (TransportException $e): void {
-                error_log('[Talaria] ' . $e->getMessage());
-            },
+            $onError,
         );
+
+        $this->spanQueue = $spanQueue ?? new SpanQueue(
+            $spanTransport,
+            $this->config->maxBatchSize,
+            $this->config->flushIntervalMs,
+            $clock,
+            $onError,
+        );
+
+        $this->tracer = new Tracer($this->config, $this->spanQueue, $this->sessionId);
 
         if ($this->config->defaultIntegrations) {
             $this->errorIntegration = new ErrorIntegration($this);
@@ -315,6 +353,9 @@ final class TalariaClient
         if ($respectMinLevel && !SeverityLevel::Error->atLeast($this->minLevel)) {
             return;
         }
+
+        $this->tracer->markError($exception->getMessage());
+
         if (!$this->config->shouldSample()) {
             return;
         }
@@ -391,6 +432,69 @@ final class TalariaClient
     }
 
     /**
+     * @param array{
+     *   timestamp?: string,
+     *   type?: string,
+     *   category?: string|null,
+     *   message?: string|null,
+     *   level?: string|null,
+     *   data?: array<string, mixed>
+     * } $breadcrumb
+     */
+    public function addBreadcrumb(array $breadcrumb): void
+    {
+        $this->breadcrumbs->add($breadcrumb);
+    }
+
+    public function clearBreadcrumbs(): void
+    {
+        $this->breadcrumbs->clear();
+    }
+
+    /**
+     * @param array<string, string> $attributes
+     */
+    public function startTransaction(
+        string $name,
+        string|SpanKind $kind = SpanKind::Server,
+        array $attributes = [],
+    ): Span {
+        return $this->tracer->startTransaction($name, $kind, $attributes);
+    }
+
+    /**
+     * @param array<string, string> $attributes
+     */
+    public function startSpan(
+        string $name,
+        string|SpanKind $kind = SpanKind::Internal,
+        array $attributes = [],
+    ): Span {
+        return $this->tracer->startSpan($name, $kind, $attributes);
+    }
+
+    public function getTracer(): Tracer
+    {
+        return $this->tracer;
+    }
+
+    /**
+     * W3C `traceparent` for the active span, or null when tracing is off / idle.
+     */
+    public function getTraceparent(): ?string
+    {
+        $span = $this->tracer->currentSpan() ?? $this->tracer->rootSpan();
+        if ($span === null) {
+            return null;
+        }
+        if ($span->traceId === str_repeat('0', 32) || $span->spanId === str_repeat('0', 16)) {
+            return null;
+        }
+
+        return TraceContext::format($span->traceId, $span->spanId, $this->tracer->isSampled());
+    }
+
+    /**
      * @param array<string, string> $tags
      */
     public function setTags(array $tags): void
@@ -433,6 +537,7 @@ final class TalariaClient
             @fastcgi_finish_request();
         }
         $this->queue->flush();
+        $this->spanQueue->flush();
     }
 
     public function close(): void
@@ -445,6 +550,11 @@ final class TalariaClient
     public function queueSize(): int
     {
         return $this->queue->count();
+    }
+
+    public function spanQueueSize(): int
+    {
+        return $this->spanQueue->count();
     }
 
     /**
@@ -567,6 +677,20 @@ final class TalariaClient
             }
         }
 
+        $active = $this->tracer->currentSpan() ?? $this->tracer->rootSpan();
+        $traceId = $active !== null && ($active->isRecording() || $active->hasEnded()) && $active->traceId !== str_repeat('0', 32)
+            ? $active->traceId
+            : null;
+        $spanId = $active !== null && ($active->isRecording() || $active->hasEnded()) && $active->spanId !== str_repeat('0', 16)
+            ? $active->spanId
+            : null;
+
+        $isError = $level->atLeast(SeverityLevel::Error);
+        $breadcrumbs = $isError ? $this->breadcrumbs->snapshot() : null;
+        if ($breadcrumbs === []) {
+            $breadcrumbs = null;
+        }
+
         $event = new Event(
             message: $message,
             environment: Environment::fromMixed($this->config->environment),
@@ -585,8 +709,18 @@ final class TalariaClient
             timestamp: RuntimeContext::isoTimestamp(),
             exception: $exception,
             platform: $platform,
+            traceId: $traceId,
+            spanId: $spanId,
+            breadcrumbs: $breadcrumbs,
         );
 
         $this->queue->enqueue($event);
+
+        $this->breadcrumbs->add([
+            'type' => $exception !== null ? 'error' : 'default',
+            'category' => $exception !== null ? 'exception' : 'log',
+            'message' => $message,
+            'level' => $level->value,
+        ]);
     }
 }

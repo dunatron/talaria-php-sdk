@@ -1,6 +1,6 @@
 {
   "name": "newtalaria/logging",
-  "description": "PHP SDK for Talaria logging and error tracking (Silverstripe-ready)",
+  "description": "PHP SDK for Talaria logging, error tracking, and optional tracing (Silverstripe-ready)",
   "type": "silverstripe-vendormodule",
   "license": "MIT",
   "keywords": [
@@ -25,10 +25,14 @@
   "require-dev": {
     "phpunit/phpunit": "^11.0"
   },
-  "suggest": {
-    "silverstripe/framework": "Required for the Silverstripe Monolog / Injector integration (^4.13 || ^5 || ^6; PHP 8.1+)",
-    "silverstripe/vendor-plugin": "Enables Silverstripe vendor module discovery"
-  },
+    "suggest": {
+        "silverstripe/framework": "Required for the Silverstripe Monolog / Injector integration (^4.13 || ^5 || ^6; PHP 8.1+)",
+        "silverstripe/vendor-plugin": "Enables Silverstripe vendor module discovery",
+        "predis/predis": "Wrap with Talaria\\Tracing\\RedisInstrumentation::wrap() for Redis CLIENT spans",
+        "ext-redis": "Wrap a \\Redis instance with RedisInstrumentation::wrap() for Redis CLIENT spans",
+        "ext-pdo": "Wrap connections with Talaria\\Tracing\\TracingPdo",
+        "ext-mysqli": "Use Talaria\\Tracing\\TracingMysqli::query() / execute()"
+    },
   "autoload": {
     "psr-4": {
       "Talaria\\": "src/",

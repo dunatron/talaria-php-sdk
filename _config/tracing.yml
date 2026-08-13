@@ -1,0 +1,16 @@
+---
+Name: talaria-tracing
+After:
+  - '#talaria-logging'
+---
+SilverStripe\Core\Injector\Injector:
+  Talaria\SilverStripe\HttpMiddleware:
+    class: Talaria\SilverStripe\HttpMiddleware
+  SilverStripe\Control\Director:
+    properties:
+      Middlewares:
+        TalariaTracing: '%$Talaria\SilverStripe\HttpMiddleware'
+  MySQLDatabase:
+    class: Talaria\SilverStripe\TracingMySQLDatabase
+  GuzzleHttp\Client:
+    factory: Talaria\SilverStripe\GuzzleClientFactory

@@ -9,6 +9,8 @@ globs:
 
 ## Wire contract
 
+Events:
+
 - `POST {baseUrl}/events/ingestBatch`
 - Header: `X-API-Key` only (no dual Authorization unless needed)
 - Body:
@@ -24,7 +26,14 @@ globs:
 }
 ```
 
-- Even a single leftover event is a batch of one
+Spans (when tracing is enabled):
+
+- `POST {baseUrl}/spans/ingestBatch`
+- Same `X-API-Key`
+- Body: `{ "input": { "__className__": "IngestSpanBatchInput", "spans": [ { "__className__": "IngestSpanInput", ... } ] } }`
+- `SpanTransport` constructs its **own** Guzzle client. Do not install `GuzzleMiddleware` on ingest transports.
+
+- Even a single leftover event or span is a batch of one
 - `extra` → `extraJson` (JSON **string**); `tags` are string→string
 - Flat `userId` / `url` — not nested `user` / `request`
 - First-class `exception` (`ExceptionDataDto` / frames with `functionName`) — never put `exception_class` / `file` / `line` / `code` in `extra`

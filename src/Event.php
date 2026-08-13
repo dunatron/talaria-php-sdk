@@ -31,6 +31,10 @@ final class Event
         public readonly ?string $timestamp = null,
         public readonly ?array $exception = null,
         public readonly ?string $platform = null,
+        public readonly ?string $traceId = null,
+        public readonly ?string $spanId = null,
+        /** @var list<array<string, mixed>>|null */
+        public readonly ?array $breadcrumbs = null,
     ) {
         if (trim($message) === '') {
             throw new \InvalidArgumentException('Event message must not be empty.');
@@ -88,6 +92,15 @@ final class Event
         }
         if ($this->timestamp !== null && $this->timestamp !== '') {
             $wire['timestamp'] = $this->timestamp;
+        }
+        if ($this->traceId !== null && $this->traceId !== '') {
+            $wire['traceId'] = $this->traceId;
+        }
+        if ($this->spanId !== null && $this->spanId !== '') {
+            $wire['spanId'] = $this->spanId;
+        }
+        if ($this->breadcrumbs !== null && $this->breadcrumbs !== []) {
+            $wire['breadcrumbs'] = $this->breadcrumbs;
         }
 
         return $wire;

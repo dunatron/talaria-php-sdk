@@ -18,6 +18,8 @@ use Talaria\Environment;
  * - TALARIA_ENVIRONMENT
  * - TALARIA_RELEASE (optional)
  * - TALARIA_COMMIT_SHA (optional)
+ * - TALARIA_ENABLE_TRACING (optional; default off)
+ * - TALARIA_TRACES_SAMPLE_RATE (optional; default 0.1 when tracing is on)
  */
 class Config
 {
@@ -63,7 +65,12 @@ class Config
             'minLevel' => self::minLevel(),
             'enforceDefaultLevel' => self::enforceDefaultLevel(),
             'defaultIntegrations' => true,
+            'enableTracing' => self::enableTracing(),
         ];
+
+        if (self::tracesSampleRateProvided()) {
+            $options['tracesSampleRate'] = self::tracesSampleRate();
+        }
 
         if ($release !== '') {
             $options['release'] = $release;
@@ -241,14 +248,14 @@ class Config
      */
     public static function browserSdkVersion(): string
     {
-        $version = static::config()->get('browserSdkVersion') ?? '0.1.21';
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.22';
         if (!is_string($version) || $version === '') {
-            return '0.1.21';
+            return '0.1.22';
         }
 
-        // Allow semver and npm tags like 0.1.21 or latest (prefer exact semver).
+        // Allow semver and npm tags like 0.1.22 or latest (prefer exact semver).
         if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
-            return '0.1.21';
+            return '0.1.22';
         }
 
         return $version;
@@ -296,6 +303,65 @@ class Config
         $raw = static::config()->get('loggers');
 
         return SdkConfig::normalizeLoggers(is_array($raw) ? $raw : []);
+    }
+
+    public static function enableTracing(): bool
+    {
+        $env = self::env('TALARIA_ENABLE_TRACING');
+        if ($env !== '') {
+            return self::resolveBool($env, false);
+        }
+
+        return self::resolveBool(static::config()->get('enableTracing'), false);
+    }
+
+    public static function tracesSampleRate(): float
+    {
+        $env = self::env('TALARIA_TRACES_SAMPLE_RATE');
+        if ($env !== '') {
+            return max(0.0, min(1.0, (float) $env));
+        }
+
+        $yaml = static::config()->get('tracesSampleRate');
+        if ($yaml !== null && $yaml !== '') {
+            return max(0.0, min(1.0, (float) $yaml));
+        }
+
+        return self::enableTracing() ? 0.1 : 0.0;
+    }
+
+    public static function tracesSampleRateProvided(): bool
+    {
+        if (self::env('TALARIA_TRACES_SAMPLE_RATE') !== '') {
+            return true;
+        }
+
+        $yaml = static::config()->get('tracesSampleRate');
+
+        return $yaml !== null && $yaml !== '';
+    }
+
+    private static function resolveBool(mixed $value, bool $default): bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_int($value) || is_float($value)) {
+            return (bool) $value;
+        }
+        if (is_string($value)) {
+            $resolved = self::resolveString($value);
+            if ($resolved === '') {
+                $resolved = $value;
+            }
+
+            return in_array(strtolower($resolved), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return (bool) $value;
     }
 
     private static function resolveMemberUserId(): ?string

@@ -1,0 +1,10 @@
+---
+Name: talaria-tracing-queuedjobs
+After:
+  - '#talaria-tracing'
+Only:
+  classexists: 'Symbiote\QueuedJobs\Services\QueuedJobService'
+---
+SilverStripe\Core\Injector\Injector:
+  Symbiote\QueuedJobs\Services\QueuedJobService:
+    class: Talaria\SilverStripe\TracingQueuedJobService

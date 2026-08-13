@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Talaria;
 
+use Talaria\Tracing\Span;
+use Talaria\Tracing\SpanKind;
+
 /**
  * Static facade mirroring the browser SDK singleton API.
  */
@@ -149,6 +152,48 @@ final class Talaria
         array $context = [],
     ): void {
         self::requireClient()->captureMessage($message, $level, $context);
+    }
+
+    /**
+     * @param array{
+     *   timestamp?: string,
+     *   type?: string,
+     *   category?: string|null,
+     *   message?: string|null,
+     *   level?: string|null,
+     *   data?: array<string, mixed>
+     * } $breadcrumb
+     */
+    public static function addBreadcrumb(array $breadcrumb): void
+    {
+        self::requireClient()->addBreadcrumb($breadcrumb);
+    }
+
+    /**
+     * @param array<string, string> $attributes
+     */
+    public static function startTransaction(
+        string $name,
+        string|SpanKind $kind = SpanKind::Server,
+        array $attributes = [],
+    ): Span {
+        return self::requireClient()->startTransaction($name, $kind, $attributes);
+    }
+
+    /**
+     * @param array<string, string> $attributes
+     */
+    public static function startSpan(
+        string $name,
+        string|SpanKind $kind = SpanKind::Internal,
+        array $attributes = [],
+    ): Span {
+        return self::requireClient()->startSpan($name, $kind, $attributes);
+    }
+
+    public static function getTraceparent(): ?string
+    {
+        return self::requireClient()->getTraceparent();
     }
 
     public static function flush(): void

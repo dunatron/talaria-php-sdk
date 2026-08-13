@@ -16,6 +16,10 @@ Talaria::debug/info/warning/warn/error/fatal($message, $context);
 Talaria::log($level, $message, $context);
 Talaria::captureException($e, $context);
 Talaria::captureMessage($message, $level, $context);
+Talaria::addBreadcrumb([...]);
+Talaria::startTransaction($name, $kind?, $attributes?);
+Talaria::startSpan($name, $kind?, $attributes?);
+Talaria::getTraceparent();
 Talaria::getMinLevel(); Talaria::setMinLevel($level); Talaria::isLevelEnabled($level);
 Talaria::isEnforceDefaultLevel(); Talaria::setEnforceDefaultLevel($bool);
 Talaria::flush();
@@ -33,7 +37,7 @@ PHPDoc; cast with `(string) $message` at runtime.
 ## Init options
 
 - Required: `dsn` or `baseUrl`, `apiKey`, `environment`
-- Optional: `release`, `sampleRate`, `minLevel` (default `debug` — default/root level), `enforceDefaultLevel` (default `false`), `loggers` (named presets), `beforeSend`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`, `httpTimeoutSeconds`
+- Optional: `release`, `sampleRate`, `enableTracing` (default `false`), `tracesSampleRate` (default `0.1` when tracing is on), `minLevel` (default `debug` — default/root level), `enforceDefaultLevel` (default `false`), `loggers` (named presets), `beforeSend`, `maxBatchSize`, `flushIntervalMs`, `defaultIntegrations`, `userId`, `tags`, `httpTimeoutSeconds`
 - `TalariaClient::addProcessor()` for per-request tag/extra enrichment (prefer over `setTags` on long-lived singletons)
 - Tag merge order (later wins): automatic `RuntimeContext` tags → init/global → processors → logger scope → per-call context
 

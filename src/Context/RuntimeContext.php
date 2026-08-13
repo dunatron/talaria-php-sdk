@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Talaria\Context;
 
+use Talaria\Tracing\TraceContext;
+
 /**
  * Best-effort runtime / request context for auto-enrichment.
  */
@@ -26,10 +28,15 @@ final class RuntimeContext
         }
 
         $requestId = null;
-        foreach (['HTTP_X_REQUEST_ID', 'HTTP_X_CORRELATION_ID', 'HTTP_X_AMZN_TRACE_ID'] as $header) {
-            if (!empty($_SERVER[$header]) && is_string($_SERVER[$header])) {
-                $requestId = $_SERVER[$header];
-                break;
+        $traceparent = TraceContext::fromServer();
+        if ($traceparent !== null) {
+            $requestId = $traceparent->traceId;
+        } else {
+            foreach (['HTTP_X_REQUEST_ID', 'HTTP_X_CORRELATION_ID', 'HTTP_X_AMZN_TRACE_ID'] as $header) {
+                if (!empty($_SERVER[$header]) && is_string($_SERVER[$header])) {
+                    $requestId = $_SERVER[$header];
+                    break;
+                }
             }
         }
 

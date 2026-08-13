@@ -32,6 +32,8 @@ Talaria\SilverStripe\Config:
   maxBatchSize: 50
   flushIntervalMs: 2000
   sampleRate: 1.0
+  enableTracing: false
+  # tracesSampleRate: 0.1
   enableBrowserCms: true
   enableBrowserFrontend: true
   browserSdkVersion: '0.1.21'

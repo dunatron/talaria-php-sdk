@@ -1,6 +1,6 @@
 # newtalaria/logging
 
-Official PHP SDK for [Talaria](https://www.newtalaria.com) — capture exceptions and application logs into triageable issues. Framework-agnostic core, with a Silverstripe Monolog / Injector adapter and optional browser SDK injection.
+Official PHP SDK for [Talaria](https://www.newtalaria.com) — capture exceptions, application logs, and (optionally) traces into triageable issues and waterfalls. Framework-agnostic core, with a Silverstripe Monolog / Injector adapter and optional browser SDK injection.
 
 Events are **queued in memory** and sent with batch ingest when the buffer hits a size limit, exceeds a max age, or the request shuts down. Fingerprinting stays on the server.
 
@@ -27,6 +27,8 @@ Talaria::init([
     'commitSha' => getenv('TALARIA_COMMIT_SHA') ?: null, // optional; enables GitHub source
     'minLevel' => 'warning',       // production: drop info/debug noise
     'sampleRate' => 1.0,
+    'enableTracing' => false,   // set true (or tracesSampleRate > 0) to send spans
+    'tracesSampleRate' => 0.1, // successful transactions; errors are always kept
     'tags' => [
         'service' => 'api',
         'platform' => 'php',
@@ -43,6 +45,7 @@ Talaria::init([
 | Log volume | `minLevel: 'warning'` (use `'info'` / `'debug'` only when you intentionally want noisier capture) |
 | Identity | Set `userId` when you know the signed-in user |
 | Product dims | Put stable filters in init `tags` (`service`, `platform`) |
+| Tracing | Leave `enableTracing` off until you want APM; then `true` (10% of successful requests, 100% of errors) |
 | Shutdown | Leave `defaultIntegrations: true` so uncaught errors flush on shutdown |
 
 `environment` must resolve to `production` | `staging` | `development`. Common aliases work (`prod` / `live` → `production`, `test` / `uat` → `staging`, `dev` / `local` → `development`).
@@ -211,7 +214,7 @@ Supported: **Silverstripe 4.13+ / 5 / 6** on **PHP 8.1+**.
 composer require newtalaria/logging
 ```
 
-Set `TALARIA_DSN`, `TALARIA_API_KEY`, `TALARIA_ENVIRONMENT`, and optional `TALARIA_RELEASE` / `TALARIA_COMMIT_SHA` / `TALARIA_BROWSER_DSN`, then:
+Set `TALARIA_DSN`, `TALARIA_API_KEY`, `TALARIA_ENVIRONMENT`, and optional `TALARIA_RELEASE` / `TALARIA_COMMIT_SHA` / `TALARIA_BROWSER_DSN`. To turn on APM: `TALARIA_ENABLE_TRACING=true` (optional `TALARIA_TRACES_SAMPLE_RATE`, default `0.1`). Then:
 
 ```bash
 vendor/bin/sake dev/build flush=1
@@ -237,6 +240,52 @@ Browser CDN pin and inject details: [`client/README.md`](client/README.md) (defa
 
 Call `Talaria::flush()` before long-running CLI exit if you need guarantees beyond shutdown hooks.
 
+## Tracing (APM)
+
+Tracing is **off** until `enableTracing: true` or `tracesSampleRate > 0`. Default API keys include `spansWrite`; the SDK reuses the same `tal_live_…` key for `POST /spans/ingestBatch`.
+
+```php
+Talaria::init([
+    'dsn' => 'https://api.newtalaria.com',
+    'apiKey' => 'tal_live_…',
+    'environment' => 'production',
+    'enableTracing' => true,      // default tracesSampleRate = 0.1
+    // 'tracesSampleRate' => 0.1, // successful transactions; errors always kept
+]);
+
+$tx = Talaria::startTransaction('GET /checkout');
+try {
+    $span = Talaria::startSpan('SELECT', 'client', [
+        'db.system.name' => 'mysql',
+        'db.operation.name' => 'SELECT',
+        'db.query.text' => 'SELECT * FROM "Order" WHERE "ID" = ?',
+    ]);
+    $span->end();
+    $tx->setStatus('ok');
+} catch (Throwable $e) {
+    $tx->setStatus('error', $e->getMessage());
+    throw $e;
+} finally {
+    $tx->end();
+}
+
+Talaria::addBreadcrumb([
+    'type' => 'query',
+    'category' => 'db',
+    'message' => 'SELECT',
+    'level' => 'info',
+]);
+```
+
+| Rule | Behavior |
+| --- | --- |
+| Sampling | Head-based. 100% of error transactions; `tracesSampleRate` (default 10%) of successful. Dropped spans are not sent |
+| W3C | Incoming `traceparent` is parsed before `X-Request-Id`. Outbound app HTTP (Guzzle middleware) injects `traceparent` |
+| Events | Active `traceId` / `spanId` are set on captured events. Last 50 breadcrumbs attach to **error** events |
+| Ingest | App Guzzle clients only. The SDK’s own `events/ingestBatch` and `spans/ingestBatch` clients are never wrapped |
+
+Silverstripe auto-instruments HTTP requests, MySQL queries, Injector Guzzle clients, and QueuedJobs when tracing is on. Framework-agnostic helpers: `TracingPdo` / `TracingMysqli`, `RedisInstrumentation::wrap()` (Predis or phpredis), `Psr15Middleware`, and `IncomingHttp::startTransaction()`. See [docs/silverstripe.md](docs/silverstripe.md).
+
 ## Init options
 
 | Option | Default | Description |
@@ -252,6 +301,8 @@ Call `Talaria::flush()` before long-running CLI exit if you need guarantees beyo
 | `enforceDefaultLevel` | `false` | When true, scoped loggers cannot go below `minLevel` |
 | `loggers` | `[]` | Named presets for `Talaria::logger('name')` |
 | `sampleRate` | `1.0` | Fraction of eligible events to enqueue (after level gate) |
+| `enableTracing` | `false` | Record and send spans (`POST /spans/ingestBatch`). Also on when `tracesSampleRate > 0` |
+| `tracesSampleRate` | `0.1` when tracing on, else `0` | Head-based rate for **successful** transactions. Error transactions are always sent. Dropped spans are not sent |
 | `beforeSend` | — | `fn (array $event, array $hint): ?array` — mutate or drop after gates |
 | `maxBatchSize` | `50` | Flush when buffer reaches N events |
 | `flushIntervalMs` | `2000` | Flush when oldest buffered event is this old |
@@ -269,6 +320,10 @@ Call `Talaria::flush()` before long-running CLI exit if you need guarantees beyo
 | `Talaria::log($level, $message, $context?)` | Generic level helper |
 | `Talaria::captureException($e, $context?)` | Ingest error |
 | `Talaria::captureMessage($message, $level?, $context?)` | Ingest message |
+| `Talaria::addBreadcrumb($breadcrumb)` | Ring-buffer trail (cap 50) attached to error events |
+| `Talaria::startTransaction($name, $kind?, $attributes?)` | Start a root span (SERVER by default) |
+| `Talaria::startSpan($name, $kind?, $attributes?)` | Start a child span when a transaction is open |
+| `Talaria::getTraceparent()` | Active W3C `traceparent`, or `null` |
 | `Talaria::getMinLevel()` / `setMinLevel($level)` | Read/update default/root level |
 | `Talaria::isEnforceDefaultLevel()` / `setEnforceDefaultLevel($bool)` | Hard-floor toggle |
 | `Talaria::isLevelEnabled($level)` | Whether a level would pass the root floor |
@@ -286,5 +341,6 @@ Scoped loggers also expose `child`, `withMinLevel`, `withTags`, `isLevelEnabled`
 | `info` never appears | Root `minLevel` is often `'warning'` — use a scoped/named logger with `minLevel: 'info'`, or lower the root |
 | Exceptions missing after `setMinLevel('fatal')` | `captureException` counts as `'error'` |
 | Nothing after deploy | Confirm `environment` filter in the dashboard; call `flush` in CLI scripts |
+| No traces | Tracing is off until `enableTracing: true` or `tracesSampleRate > 0`. Error requests are always kept; successful ones follow the sample rate |
 
 More guides: [www.newtalaria.com/docs](https://www.newtalaria.com/docs)
