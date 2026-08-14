@@ -32,13 +32,16 @@ final class GuzzleMiddleware
 
                 $method = $request->getMethod();
                 $uri = $request->getUri();
+                $host = $uri->getHost();
+                $path = $uri->getPath() !== '' ? $uri->getPath() : '/';
+                $name = $host !== '' ? $method . ' ' . $host . $path : $method . ' ' . $path;
                 $span = $tracer->startSpan(
-                    $method . ' ' . ($uri->getPath() !== '' ? $uri->getPath() : '/'),
+                    $name,
                     SpanKind::Client,
                     [
                         'http.request.method' => $method,
                         'url.full' => UrlSanitizer::sanitize((string) $uri),
-                        'server.address' => $uri->getHost(),
+                        'server.address' => $host,
                     ],
                 );
 

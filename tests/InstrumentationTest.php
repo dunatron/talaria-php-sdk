@@ -60,9 +60,11 @@ final class InstrumentationTest extends TestCase
         ));
         self::assertCount(2, $db);
         $first = $db[0]->toWire();
+        self::assertSame('SELECT Product', $first['name']);
         self::assertSame('SELECT', $first['attributes']['db.operation.name']);
+        self::assertSame('Product', $first['attributes']['db.collection.name']);
         self::assertStringNotContainsString('secret-title', $first['attributes']['db.query.text']);
-        self::assertStringContainsString('SELECT', $first['attributes']['db.query.text']);
+        self::assertStringContainsString('Product', $first['attributes']['db.query.text']);
     }
 
     public function testRedisProxySpansCommands(): void

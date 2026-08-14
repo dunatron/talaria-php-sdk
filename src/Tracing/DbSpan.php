@@ -24,13 +24,9 @@ final class DbSpan
     ): mixed {
         $operation = SqlSanitizer::operation($sql);
         $span = $client->startSpan(
-            $system . ' ' . $operation,
+            SqlSanitizer::spanName($sql),
             SpanKind::Client,
-            [
-                'db.system.name' => $system,
-                'db.operation.name' => $operation,
-                'db.query.text' => SqlSanitizer::sanitize($sql),
-            ],
+            SqlSanitizer::attributes($sql, $system),
         );
 
         try {

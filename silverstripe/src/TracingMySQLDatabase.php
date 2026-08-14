@@ -60,21 +60,16 @@ class TracingMySQLDatabase extends MySQLDatabase
             return $callback();
         }
 
-        $operation = SqlSanitizer::operation($sql);
-        $sanitized = SqlSanitizer::sanitize($sql);
-        $span = $client->startSpan($operation, SpanKind::Client, [
-            'db.system.name' => 'mysql',
-            'db.operation.name' => $operation,
-            'db.query.text' => $sanitized,
-        ]);
+        $attrs = SqlSanitizer::attributes($sql, 'mysql');
+        $span = $client->startSpan(SqlSanitizer::spanName($sql), SpanKind::Client, $attrs);
         $client->addBreadcrumb([
             'type' => 'query',
             'category' => 'db',
-            'message' => $operation,
+            'message' => $attrs['db.query.text'],
             'level' => 'info',
             'data' => [
                 'db.system.name' => 'mysql',
-                'db.operation.name' => $operation,
+                'db.operation.name' => $attrs['db.operation.name'],
             ],
         ]);
 

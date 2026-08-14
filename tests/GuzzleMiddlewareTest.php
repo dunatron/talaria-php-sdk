@@ -48,6 +48,7 @@ final class GuzzleMiddlewareTest extends TestCase
             }
         }
         self::assertNotNull($child);
+        self::assertSame('GET payments.example.com/charge', $child->name);
         $wire = $child->toWire();
         self::assertSame('GET', $wire['attributes']['http.request.method']);
         self::assertSame('200', $wire['attributes']['http.response.status_code']);
