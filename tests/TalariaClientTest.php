@@ -100,7 +100,7 @@ final class TalariaClientTest extends TestCase
         $client->captureMessage('hello');
         $event = $transport->batches[0][0];
         self::assertNull($event->exception);
-        self::assertNull($event->platform);
+        self::assertSame('php', $event->platform);
         self::assertArrayNotHasKey('exception', $event->toWire());
     }
 

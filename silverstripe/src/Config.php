@@ -156,7 +156,7 @@ class Config
             'enforceDefaultLevel' => self::enforceDefaultLevel(),
             'replaysSessionSampleRate' => (float) (static::config()->get('browserReplaysSessionSampleRate') ?? 0),
             'replaysOnErrorSampleRate' => (float) (static::config()->get('browserReplaysOnErrorSampleRate') ?? 0),
-            'tags' => SdkConfig::normalizeTags($tags),
+            'tags' => SdkConfig::withoutPhpRuntimeTags(SdkConfig::normalizeTags($tags)),
             'inlineStylesheet' => self::resolveInlineStylesheet($runtimeTag),
             'captureFailedRequests' => self::resolveCaptureFailedRequests(),
             'failedRequestStatusCodes' => self::resolveFailedRequestStatusCodes($runtimeTag),
@@ -253,14 +253,14 @@ class Config
      */
     public static function browserSdkVersion(): string
     {
-        $version = static::config()->get('browserSdkVersion') ?? '0.1.22';
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.24';
         if (!is_string($version) || $version === '') {
-            return '0.1.22';
+            return '0.1.24';
         }
 
-        // Allow semver and npm tags like 0.1.22 or latest (prefer exact semver).
+        // Allow semver and npm tags like 0.1.24 or latest (prefer exact semver).
         if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
-            return '0.1.22';
+            return '0.1.24';
         }
 
         return $version;

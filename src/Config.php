@@ -197,4 +197,20 @@ final class Config
 
         return $normalized;
     }
+
+    /**
+     * Drop PHP-runtime keys that must never appear on browser init tags.
+     *
+     * @param array<string, string> $tags
+     * @return array<string, string>
+     */
+    public static function withoutPhpRuntimeTags(array $tags): array
+    {
+        unset($tags['cli'], $tags['php.version']);
+        if (($tags['platform'] ?? '') === 'php') {
+            unset($tags['platform']);
+        }
+
+        return $tags;
+    }
 }

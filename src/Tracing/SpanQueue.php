@@ -45,6 +45,26 @@ final class SpanQueue
         }
     }
 
+    /**
+     * Send one transaction as a single ingest batch (up to 200 spans).
+     * Avoids splitting N+1 detection across size-limited RPCs.
+     *
+     * @param list<Span> $spans
+     */
+    public function sendTransaction(array $spans): void
+    {
+        if ($spans === []) {
+            return;
+        }
+        try {
+            $this->transport->sendBatch(array_values($spans));
+        } catch (TransportException $e) {
+            if ($this->onError !== null) {
+                ($this->onError)($e);
+            }
+        }
+    }
+
     public function flush(): void
     {
         if ($this->draining || $this->buffer === []) {

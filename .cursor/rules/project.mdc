@@ -55,6 +55,10 @@ App → TalariaClient
 - Allow `monolog ^1.25 \|\| ^3` and `psr/log ^1 \|\| ^2 \|\| ^3` — stock SS4 uses Monolog 1 + `psr/log` 1; SS5/6 use Monolog 3 + `psr/log` 2\|3
 - Dual handlers under `silverstripe/handlers/` (not PSR-4); factory `require_once`s one file; never a generic `TalariaLogHandler` class
 
+## Tests at end of work
+
+After any implementation in this package, run PHPUnit (`phpunit.xml.dist`) and report the command plus result. Do not assume green.
+
 ## Explicit don'ts
 
 - Do not compute fingerprints

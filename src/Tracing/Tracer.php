@@ -221,15 +221,16 @@ final class Tracer
     {
         $isError = $this->sawError || ($this->root !== null && $this->root->getStatus() === SpanStatus::Error->value);
         if (Sampling::shouldSend($this->headSampled, $isError || $this->forceSend)) {
-            $root = $this->root;
-            if ($root !== null) {
-                $this->queue->enqueue($root);
+            $toSend = [];
+            if ($this->root !== null) {
+                $toSend[] = $this->root;
             }
             foreach ($this->finished as $span) {
-                if ($span !== $root) {
-                    $this->queue->enqueue($span);
+                if ($span !== $this->root) {
+                    $toSend[] = $span;
                 }
             }
+            $this->queue->sendTransaction($toSend);
         }
 
         $this->reset();

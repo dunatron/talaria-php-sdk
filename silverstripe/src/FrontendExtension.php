@@ -19,6 +19,24 @@ class FrontendExtension extends Extension
             return;
         }
 
-        RequirementsHelper::inject('silverstripe-frontend');
+        $extraTags = [];
+        try {
+            $owner = $this->getOwner();
+            if (method_exists($owner, 'data')) {
+                $record = $owner->data();
+                $className = (is_object($record) && isset($record->ClassName))
+                    ? (string) $record->ClassName
+                    : '';
+                if ($className !== '') {
+                    if (strlen($className) > 128) {
+                        $className = substr($className, 0, 128);
+                    }
+                    $extraTags['entity'] = $className;
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        RequirementsHelper::inject('silverstripe-frontend', $extraTags);
     }
 }

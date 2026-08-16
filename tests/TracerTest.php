@@ -33,6 +33,8 @@ final class TracerTest extends TestCase
 
         $all = $spans->allSpans();
         self::assertCount(13, $all);
+        self::assertSame(1, $spans->batchCount());
+        self::assertCount(13, $spans->batches[0]);
         self::assertSame('GET /products', $all[0]->name);
         $queries = array_slice($all, 1);
         self::assertCount(12, $queries);

@@ -430,6 +430,7 @@ final class TalariaClient
                 'extra' => $extra,
                 'userId' => $context['userId'] ?? null,
             ],
+            platform: 'php',
             originalContext: $context,
         );
     }

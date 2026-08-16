@@ -26,6 +26,7 @@ final class HttpMiddleware implements \SilverStripe\Control\Middleware\HTTPMiddl
         }
 
         $client->clearBreadcrumbs();
+        $client->setUser(null);
         $client->getTracer()->reset();
 
         $method = strtoupper((string) $request->httpMethod());
@@ -58,7 +59,7 @@ final class HttpMiddleware implements \SilverStripe\Control\Middleware\HTTPMiddl
             if ($status >= 500) {
                 $span->setStatus(SpanStatus::Error, 'HTTP ' . $status);
                 $client->getTracer()->markError('HTTP ' . $status);
-            } else {
+            } elseif ($span->getStatus() !== SpanStatus::Error->value) {
                 $span->setStatus(SpanStatus::Ok);
             }
 
