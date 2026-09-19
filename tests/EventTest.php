@@ -32,6 +32,7 @@ final class EventTest extends TestCase
                 'values' => [],
             ],
             platform: 'php',
+            userAgent: 'Instagram 192.168.1.2.1 (iPhone)',
         );
 
         $wire = $event->toWire();
@@ -52,6 +53,7 @@ final class EventTest extends TestCase
         self::assertSame('{"cart_id":"abc"}', $wire['extraJson']);
         self::assertSame('2026-07-19T10:00:00.000Z', $wire['timestamp']);
         self::assertSame('php', $wire['platform']);
+        self::assertSame('Instagram 192.168.1.2.1 (iPhone)', $wire['userAgent']);
         self::assertSame('ExceptionDataDto', $wire['exception']['__className__']);
         self::assertArrayNotHasKey('stack_trace', $wire);
     }

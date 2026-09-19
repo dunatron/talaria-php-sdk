@@ -353,6 +353,14 @@ final class TalariaClient
         if ($respectMinLevel && !SeverityLevel::Error->atLeast($this->minLevel)) {
             return;
         }
+        if (EventFilters::shouldDrop(
+            $exception->getMessage() !== '' ? $exception->getMessage() : $exception::class,
+            $exception->getTraceAsString(),
+            $this->config->ignoreErrors,
+            $this->config->ignoreUrls,
+        )) {
+            return;
+        }
 
         $this->tracer->markError($exception->getMessage());
 
@@ -406,6 +414,14 @@ final class TalariaClient
 
         $severity = SeverityLevel::tryFromMixed($level) ?? SeverityLevel::Info;
         if ($respectMinLevel && !$severity->atLeast($this->minLevel)) {
+            return;
+        }
+        if (EventFilters::shouldDrop(
+            $message,
+            null,
+            $this->config->ignoreErrors,
+            $this->config->ignoreUrls,
+        )) {
             return;
         }
         if ($severity->atLeast(SeverityLevel::Error)) {
@@ -719,6 +735,9 @@ final class TalariaClient
             traceId: $traceId,
             spanId: $spanId,
             breadcrumbs: $breadcrumbs,
+            userAgent: isset($_SERVER['HTTP_USER_AGENT']) && is_string($_SERVER['HTTP_USER_AGENT'])
+                ? $_SERVER['HTTP_USER_AGENT']
+                : null,
         );
 
         $this->queue->enqueue($event);

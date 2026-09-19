@@ -35,6 +35,7 @@ final class Event
         public readonly ?string $spanId = null,
         /** @var list<array<string, mixed>>|null */
         public readonly ?array $breadcrumbs = null,
+        public readonly ?string $userAgent = null,
     ) {
         if (trim($message) === '') {
             throw new \InvalidArgumentException('Event message must not be empty.');
@@ -101,6 +102,9 @@ final class Event
         }
         if ($this->breadcrumbs !== null && $this->breadcrumbs !== []) {
             $wire['breadcrumbs'] = $this->breadcrumbs;
+        }
+        if ($this->userAgent !== null && $this->userAgent !== '') {
+            $wire['userAgent'] = $this->userAgent;
         }
 
         return $wire;

@@ -41,6 +41,10 @@ final class Config
     public readonly array $loggers;
     /** @var (callable(array<string, mixed>, array<string, mixed>): (?array<string, mixed>))|null */
     public readonly mixed $beforeSend;
+    /** @var list<string> */
+    public readonly array $ignoreErrors;
+    /** @var list<string> */
+    public readonly array $ignoreUrls;
     /**
      * Tracing is off until this is true or {@see $tracesSampleRate} > 0.
      */
@@ -70,6 +74,8 @@ final class Config
      *   enforceDefaultLevel?: bool,
      *   loggers?: array<string, array{minLevel?: string|SeverityLevel, tags?: array<string, string>}>,
      *   beforeSend?: callable|null,
+     *   ignoreErrors?: list<string>,
+     *   ignoreUrls?: list<string>,
      *   enableTracing?: bool,
      *   tracesSampleRate?: float|int,
      * } $options
@@ -126,6 +132,8 @@ final class Config
             throw new \InvalidArgumentException('Talaria beforeSend must be callable or null.');
         }
         $this->beforeSend = $beforeSend;
+        $this->ignoreErrors = EventFilters::normalizePatterns($options['ignoreErrors'] ?? []);
+        $this->ignoreUrls = EventFilters::normalizePatterns($options['ignoreUrls'] ?? []);
 
         $enableTracing = (bool) ($options['enableTracing'] ?? false);
         if (array_key_exists('tracesSampleRate', $options)) {

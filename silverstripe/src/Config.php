@@ -66,6 +66,8 @@ class Config
             'enforceDefaultLevel' => self::enforceDefaultLevel(),
             'defaultIntegrations' => true,
             'enableTracing' => self::enableTracing(),
+            'ignoreErrors' => self::stringList($cfg->get('ignoreErrors')),
+            'ignoreUrls' => self::stringList($cfg->get('ignoreUrls')),
         ];
 
         if (self::tracesSampleRateProvided()) {
@@ -160,6 +162,8 @@ class Config
             'inlineStylesheet' => self::resolveInlineStylesheet($runtimeTag),
             'captureFailedRequests' => self::resolveCaptureFailedRequests(),
             'failedRequestStatusCodes' => self::resolveFailedRequestStatusCodes($runtimeTag),
+            'ignoreErrors' => self::stringList(static::config()->get('browserIgnoreErrors')),
+            'ignoreUrls' => self::stringList(static::config()->get('browserIgnoreUrls')),
         ];
 
         if (self::enableTracing()) {
@@ -404,6 +408,24 @@ class Config
         $value = getenv($key);
 
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function stringList(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $item) {
+            if (is_string($item) && $item !== '') {
+                $out[] = $item;
+            }
+        }
+
+        return $out;
     }
 
     private static function resolveString(mixed $value): string

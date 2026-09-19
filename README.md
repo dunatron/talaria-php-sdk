@@ -35,6 +35,8 @@ Talaria::init([
     ],
     'maxBatchSize' => 50,
     'flushIntervalMs' => 2000,
+    'ignoreErrors' => ['_AutofillCallbackHandler'],
+    'ignoreUrls' => [],
 ]);
 ```
 

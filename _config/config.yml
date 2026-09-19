@@ -34,6 +34,16 @@ Talaria\SilverStripe\Config:
   sampleRate: 1.0
   enableTracing: false
   # tracesSampleRate: 0.1
+  # Optional PHP ignore lists (substring or /regex/flags).
+  # ignoreErrors:
+  #   - 'Ignore this message'
+  # ignoreUrls:
+  #   - '/vendor/'
+  # Optional extra browser ignore lists (SDK already ships known-noise defaults).
+  # browserIgnoreErrors:
+  #   - 'Custom widget noise'
+  # browserIgnoreUrls:
+  #   - 'googletagmanager.com'
   enableBrowserCms: true
   enableBrowserFrontend: true
   browserSdkVersion: '0.1.21'
