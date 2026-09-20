@@ -37,7 +37,7 @@ Depends on core `Talaria\TalariaClient` (PHP) and the published npm package [`@n
 
 - Load **`@newtalaria/browser` from npm** via jsDelivr ESM (`cdn.jsdelivr.net/npm/@newtalaria/browser@{version}/+esm`)
 - Do **not** vendor or build from a local `new_talaria_js` checkout for runtime
-- Pin version with `Talaria\SilverStripe\Config.browserSdkVersion` (default **0.1.21+**)
+- Pin version with `Talaria\SilverStripe\Config.browserSdkVersion` (default **0.1.25**)
 - Inject via `RequirementsHelper` + `LeftAndMainExtension` / `FrontendExtension`
 - Config JSON is `window.__TALARIA_CONFIG__`; module script calls `Talaria.init` and assigns `window.Talaria`
 - Optional `browserDsn` / `TALARIA_BROWSER_DSN` for browser inject when PHP `dsn` is not browser-reachable (mixed content / Docker-internal hosts)

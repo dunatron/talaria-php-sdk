@@ -257,14 +257,14 @@ class Config
      */
     public static function browserSdkVersion(): string
     {
-        $version = static::config()->get('browserSdkVersion') ?? '0.1.24';
+        $version = static::config()->get('browserSdkVersion') ?? '0.1.25';
         if (!is_string($version) || $version === '') {
-            return '0.1.24';
+            return '0.1.25';
         }
 
-        // Allow semver and npm tags like 0.1.24 or latest (prefer exact semver).
+        // Allow semver and npm tags like 0.1.25 or latest (prefer exact semver).
         if (preg_match('/^[a-zA-Z0-9._~+%-]+$/', $version) !== 1) {
-            return '0.1.24';
+            return '0.1.25';
         }
 
         return $version;

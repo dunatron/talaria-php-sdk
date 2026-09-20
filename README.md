@@ -230,7 +230,7 @@ vendor/bin/sake dev/build flush=1
 
 Full walkthrough, YAML examples, hybrid recommendation, browser inject, and troubleshooting: **[docs/silverstripe.md](docs/silverstripe.md)**.
 
-Browser CDN pin and inject details: [`client/README.md`](client/README.md) (default `browserSdkVersion` **0.1.21**).
+Browser CDN pin and inject details: [`client/README.md`](client/README.md) (default `browserSdkVersion` **0.1.25**).
 
 ## Batching
 
