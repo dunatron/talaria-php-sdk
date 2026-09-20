@@ -49,6 +49,7 @@ Talaria::init([
 | Product dims | Put stable filters in init `tags` (`service`, `platform`) |
 | Tracing | Leave `enableTracing` off until you want APM; then `true` (10% of successful requests, 100% of errors) |
 | Shutdown | Leave `defaultIntegrations: true` so uncaught errors flush on shutdown |
+| Invalid key | The SDK stops sending events and spans for this PHP process after a permanent ingest error (`retry: false`). Quota and 5xx keep sending. |
 
 `environment` must resolve to `production` | `staging` | `development`. Common aliases work (`prod` / `live` → `production`, `test` / `uat` → `staging`, `dev` / `local` → `development`).
 

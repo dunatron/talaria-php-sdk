@@ -73,4 +73,29 @@ final class ServerpodHttpTransportTest extends TestCase
             new Event(message: 'x', environment: Environment::Development, level: SeverityLevel::Info),
         ]);
     }
+
+    public function testParsesRetryAndClassNameFromBody(): void
+    {
+        $mock = new MockHandler([
+            new Response(400, ['Content-Type' => 'application/json'], json_encode([
+                '__className__' => 'ApiUnauthorizedException',
+                'message' => 'Invalid API key',
+                'retry' => false,
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+        $http = new GuzzleClient(['handler' => HandlerStack::create($mock)]);
+        $transport = new ServerpodHttpTransport('https://api.example.com', 'tal_live_abc', 2.0, $http);
+
+        try {
+            $transport->sendBatch([
+                new Event(message: 'x', environment: Environment::Development, level: SeverityLevel::Info),
+            ]);
+            self::fail('expected TransportException');
+        } catch (TransportException $e) {
+            self::assertSame('ApiUnauthorizedException', $e->className);
+            self::assertFalse($e->retry);
+            self::assertTrue($e->isPermanent());
+            self::assertSame('Invalid API key', $e->bodyMessage);
+        }
+    }
 }

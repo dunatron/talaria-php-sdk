@@ -56,3 +56,4 @@ PHP FPM has no background timer — age is checked on enqueue, not via a wall-cl
 - No unbounded retries; on 429 log warning and drop/backoff once
 - Transport failures must not crash the host app
 - Call `fastcgi_finish_request()` when available before shutdown network I/O
+- On ingest `retry: false` (or known permanent class names when `retry` is absent): drop the batch, log once, and disable events **and** spans for the rest of this PHP process. Quota / rate-limit (`retry: true`) and 5xx must **not** disable. FPM workers reuse the singleton — a new worker after deploy picks up a rotated key.

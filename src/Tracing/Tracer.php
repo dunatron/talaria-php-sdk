@@ -34,6 +34,8 @@ final class Tracer
 
     private int $childCount = 0;
 
+    private bool $ingestDisabled = false;
+
     /** @var array<string, string> */
     private array $requestAttributes = [];
 
@@ -46,7 +48,13 @@ final class Tracer
 
     public function isEnabled(): bool
     {
-        return $this->config->enableTracing;
+        return $this->config->enableTracing && !$this->ingestDisabled;
+    }
+
+    /** Stop recording / flushing spans after a permanent ingest error. */
+    public function disableIngest(): void
+    {
+        $this->ingestDisabled = true;
     }
 
     /**

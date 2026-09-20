@@ -197,4 +197,79 @@ final class TalariaClientTest extends TestCase
         // Later wins: per-call overrides processor/global/auto for the same key.
         self::assertSame('from-call', $tags['cli']);
     }
+
+    public function testInvalidKeyDisablesFurtherCapture(): void
+    {
+        $transport = new FakeTransport();
+        $transport->failWith = new \Talaria\Exception\TransportException(
+            'Talaria events/ingestBatch failed: HTTP 400',
+            400,
+            className: 'ApiUnauthorizedException',
+            retry: false,
+            bodyMessage: 'Invalid API key',
+        );
+        $client = new TalariaClient([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_deadkeydeadkeydeadkeydeadkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'maxBatchSize' => 1,
+        ], $transport);
+
+        $client->captureMessage('first');
+        $client->captureMessage('second');
+        $client->flush();
+
+        self::assertSame(1, $transport->attempts);
+        self::assertTrue($client->isEventsIngestDisabled());
+        self::assertTrue($client->isSpansIngestDisabled());
+    }
+
+    public function testQuotaDoesNotDisableIngest(): void
+    {
+        $transport = new FakeTransport();
+        $transport->failWith = new \Talaria\Exception\TransportException(
+            'Talaria events/ingestBatch failed: HTTP 400',
+            400,
+            className: 'ApiConflictException',
+            retry: true,
+            bodyMessage: 'quota exceeded',
+        );
+        $client = new TalariaClient([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'maxBatchSize' => 1,
+        ], $transport);
+
+        $client->captureMessage('first');
+        $client->captureMessage('second');
+
+        self::assertSame(2, $transport->attempts);
+        self::assertFalse($client->isEventsIngestDisabled());
+        self::assertFalse($client->isSpansIngestDisabled());
+    }
+
+    public function testServerErrorDoesNotDisableIngest(): void
+    {
+        $transport = new FakeTransport();
+        $transport->failWith = new \Talaria\Exception\TransportException(
+            'Talaria events/ingestBatch failed: HTTP 503',
+            503,
+        );
+        $client = new TalariaClient([
+            'dsn' => 'https://api.example.com',
+            'apiKey' => 'tal_live_testkeytestkeytestkeytestkey123456',
+            'environment' => 'development',
+            'defaultIntegrations' => false,
+            'maxBatchSize' => 1,
+        ], $transport);
+
+        $client->captureMessage('first');
+        $client->captureMessage('second');
+
+        self::assertSame(2, $transport->attempts);
+        self::assertFalse($client->isEventsIngestDisabled());
+    }
 }

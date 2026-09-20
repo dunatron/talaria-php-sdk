@@ -8,6 +8,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Talaria\Exception\TransportException;
+use Talaria\Transport\IngestError;
 
 /**
  * Minimal Serverpod RPC client for spans/ingestBatch.
@@ -59,9 +60,25 @@ final class SpanTransport implements SpanTransportInterface
                 'timeout' => $this->timeoutSeconds,
             ]);
         } catch (GuzzleException $e) {
+            $status = null;
+            $body = '';
+            if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
+                $response = $e->getResponse();
+                $status = $response?->getStatusCode();
+                $body = (string) ($response?->getBody() ?? '');
+            }
+            $parsed = IngestError::parse($body);
+            $detail = self::formatErrorDetail($body, $parsed);
+            $prefix = $status !== null
+                ? "Talaria spans/ingestBatch failed: HTTP {$status}"
+                : 'Talaria spans/ingestBatch failed: ' . $e->getMessage();
             throw new TransportException(
-                'Talaria spans/ingestBatch failed: ' . $e->getMessage(),
+                $prefix . ($detail !== '' ? " — {$detail}" : ''),
+                $status,
                 previous: $e,
+                className: $parsed->className,
+                retry: $parsed->retry,
+                bodyMessage: $parsed->message,
             );
         }
 
@@ -71,33 +88,28 @@ final class SpanTransport implements SpanTransportInterface
         }
 
         $body = (string) $response->getBody();
-        $detail = self::formatErrorDetail($body);
+        $parsed = IngestError::parse($body);
+        $detail = self::formatErrorDetail($body, $parsed);
 
         throw new TransportException(
             "Talaria spans/ingestBatch failed: HTTP {$status}" . ($detail !== '' ? " — {$detail}" : ''),
             $status,
+            className: $parsed->className,
+            retry: $parsed->retry,
+            bodyMessage: $parsed->message,
         );
     }
 
-    private static function formatErrorDetail(string $body): string
+    private static function formatErrorDetail(string $body, IngestError $parsed): string
     {
-        $snippet = substr($body, 0, 400);
-        try {
-            /** @var array<string, mixed> $parsed */
-            $parsed = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-            $className = $parsed['className'] ?? $parsed['exception'] ?? null;
-            $message = $parsed['message'] ?? null;
-            $parts = array_filter([
-                is_string($className) ? $className : null,
-                is_string($message) ? $message : null,
-            ]);
-            if ($parts !== []) {
-                return implode(': ', $parts);
-            }
-        } catch (\Throwable) {
-            // keep raw snippet
+        $parts = array_filter([
+            $parsed->className,
+            $parsed->message,
+        ]);
+        if ($parts !== []) {
+            return implode(': ', $parts);
         }
 
-        return $snippet;
+        return substr($body, 0, 400);
     }
 }

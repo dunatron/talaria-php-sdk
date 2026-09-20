@@ -34,6 +34,9 @@ final class TalariaClient
     private readonly BreadcrumbBuffer $breadcrumbs;
     private readonly string $sessionId;
     private bool $closed = false;
+    private bool $eventsDisabled = false;
+    private bool $spansDisabled = false;
+    private bool $loggedIngestDisable = false;
     private ?ErrorIntegration $errorIntegration = null;
 
     /** Mutable default/root floor; initialized from config. */
@@ -104,7 +107,12 @@ final class TalariaClient
                 );
         }
 
-        $onError = static function (TransportException $e): void {
+        $onError = function (TransportException $e): void {
+            $this->handleTransportError($e, spans: false);
+            error_log('[Talaria] ' . $e->getMessage());
+        };
+        $onSpanError = function (TransportException $e): void {
+            $this->handleTransportError($e, spans: true);
             error_log('[Talaria] ' . $e->getMessage());
         };
 
@@ -121,7 +129,7 @@ final class TalariaClient
             $this->config->maxBatchSize,
             $this->config->flushIntervalMs,
             $clock,
-            $onError,
+            $onSpanError,
         );
 
         $this->tracer = new Tracer($this->config, $this->spanQueue, $this->sessionId);
@@ -347,7 +355,7 @@ final class TalariaClient
         array $context,
         bool $respectMinLevel,
     ): void {
-        if ($this->closed) {
+        if ($this->closed || $this->eventsDisabled) {
             return;
         }
         if ($respectMinLevel && !SeverityLevel::Error->atLeast($this->minLevel)) {
@@ -408,7 +416,7 @@ final class TalariaClient
         array $context,
         bool $respectMinLevel,
     ): void {
-        if ($this->closed) {
+        if ($this->closed || $this->eventsDisabled) {
             return;
         }
 
@@ -577,6 +585,42 @@ final class TalariaClient
         return $this->spanQueue->count();
     }
 
+    public function isEventsIngestDisabled(): bool
+    {
+        return $this->eventsDisabled;
+    }
+
+    public function isSpansIngestDisabled(): bool
+    {
+        return $this->spansDisabled;
+    }
+
+    /**
+     * @param bool $spans True when the failed call was spans/ingestBatch.
+     */
+    private function handleTransportError(TransportException $error, bool $spans): void
+    {
+        if (!$error->isPermanent()) {
+            return;
+        }
+        if ($error->isScopeOnly()) {
+            if ($spans) {
+                $this->spansDisabled = true;
+                $this->tracer->disableIngest();
+            } else {
+                $this->eventsDisabled = true;
+            }
+        } else {
+            $this->eventsDisabled = true;
+            $this->spansDisabled = true;
+            $this->tracer->disableIngest();
+        }
+        if (!$this->loggedIngestDisable) {
+            $this->loggedIngestDisable = true;
+            error_log('[Talaria] ingest disabled after permanent client error: ' . $error->getMessage());
+        }
+    }
+
     /**
      * @param array{
      *   tags?: array<string, mixed>|null,
@@ -596,6 +640,9 @@ final class TalariaClient
         ?string $platform = null,
         ?array $originalContext = null,
     ): void {
+        if ($this->eventsDisabled) {
+            return;
+        }
         $runtime = RuntimeContext::collect();
 
         // Later wins: automatic → global → processors → per-call (scope tags already in context).

@@ -12,8 +12,16 @@ final class FakeTransport implements TransportInterface
     /** @var list<list<Event>> */
     public array $batches = [];
 
+    public int $attempts = 0;
+
+    public ?\Talaria\Exception\TransportException $failWith = null;
+
     public function sendBatch(array $events): void
     {
+        $this->attempts++;
+        if ($this->failWith !== null) {
+            throw $this->failWith;
+        }
         $this->batches[] = array_values($events);
     }
 
